@@ -1,18 +1,18 @@
 {
-  "$schema": "https://example.com/sparql-to-ld-config-schema.json",
   "server": {
-    "port": 3000,
     "host": "0.0.0.0",
-    "cors": {
-      "origin": "*"
+    "port": 3000
+  },
+  "cors": {
+    "origin": "*"
+  },
+  "translateResponse": true,
+  "uriMappings": [
+    {
+      "dsName": "my-dataset",
+      "endpoint": "http://localhost:3030/my-dataset/sparql",
+      "internalPrefix": "http://dbpedia.org/resource/",
+      "externalPrefix": "http://localhost:3000/ld/my-dataset/"
     }
-  },
-  "sparql": {
-    "endpoint": "http://localhost:3030/dataset",
-    "timeout": 30000,
-    "maxResults": 10000
-  },
-  "logging": {
-    "level": "info"
-  }
+  ]
 }
