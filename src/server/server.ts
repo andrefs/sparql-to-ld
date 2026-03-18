@@ -59,7 +59,9 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
   if (enrichedMappings.length > 0) {
     server.log.info('Configured URI mappings:');
     for (const mapping of enrichedMappings) {
-      server.log.info(`  ${mapping.dsName}: ${mapping.externalPrefix} -> ${mapping.endpoint}`);
+      server.log.info(
+        `  ${mapping.dsName}: ${mapping.externalPrefix} -> ${mapping.internalPrefix} (${mapping.endpoint})`
+      );
     }
   } else {
     server.log.warn('No URI mappings configured');
