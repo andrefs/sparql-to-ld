@@ -1,10 +1,5 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-# Run linting
 npx lint-staged
 
-# Only run tests if there are test files (exclude node_modules)
 if find . -not -path "*/node_modules/*" -name "*.test.ts" -o -name "*.spec.ts" | grep -q .; then
   npm test
 else
