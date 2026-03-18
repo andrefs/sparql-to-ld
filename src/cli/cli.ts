@@ -102,11 +102,22 @@ Example config file (sparql-to-ld.json):
     });
 
     console.log(`Server listening at ${address}`);
-    const endpointInfo = config.uriMappings?.length
-      ? `${config.uriMappings.length} mapping(s) configured`
-      : `SPARQL endpoint: ${config.sparql?.endpoint ?? 'none'}`;
-    console.log(endpointInfo);
-    console.log(`URI mappings: ${config.uriMappings?.length ?? 0} configured`);
+
+    const serverHost = config.host ?? '0.0.0.0';
+    const serverPort = config.port ?? 3000;
+
+    if (config.uriMappings && config.uriMappings.length > 0) {
+      console.log(`URI mappings:`);
+      for (const m of config.uriMappings) {
+        const externalPrefix =
+          m.externalPrefix ??
+          `http://${serverHost === '0.0.0.0' ? 'localhost' : serverHost}:${serverPort}/ld/${m.dsName}/`;
+        console.log(`  ${m.dsName}: ${externalPrefix} -> ${m.internalPrefix} (${m.endpoint})`);
+      }
+    } else {
+      console.log(`No URI mappings configured`);
+    }
+
     console.log(
       `Response translation: ${(config.translateResponse ?? true) ? 'enabled' : 'disabled'}`
     );
