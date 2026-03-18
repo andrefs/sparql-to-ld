@@ -3,6 +3,7 @@
  */
 
 import { z } from 'zod';
+import { UriMapping } from './Resource.js';
 
 /**
  * SPARQL endpoint configuration
@@ -125,6 +126,18 @@ export interface ServerConfig {
    * Logging settings
    */
   logging?: LoggingConfig;
+
+  /**
+   * URI mappings for translating between external and internal URIs
+   */
+  uriMappings?: UriMapping[];
+
+  /**
+   * Whether to translate the response dataset from internal to external URIs
+   * Can be overridden by query parameter ?translateResponse=false
+   * @default true
+   */
+  translateResponse?: boolean;
 }
 
 /**
@@ -157,6 +170,15 @@ export const serverConfigSchema = z.object({
       prettyPrint: z.boolean().optional(),
     })
     .optional(),
+  uriMappings: z
+    .array(
+      z.object({
+        internalPrefix: z.string(),
+        externalPrefix: z.string(),
+      })
+    )
+    .optional(),
+  translateResponse: z.boolean().optional(),
 });
 
 /**

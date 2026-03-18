@@ -50,6 +50,14 @@ export type RdfFormat =
   | 'application/rdf+xml';
 
 /**
+ * URI mapping configuration for translating between internal and external URI spaces
+ */
+export interface UriMapping {
+  internalPrefix: string;
+  externalPrefix: string;
+}
+
+/**
  * Content negotiation result: the format to use based on Accept header and query param
  */
 export interface NegotiatedFormat {

@@ -45,6 +45,7 @@
   },
   "homepage": "https://github.com/andrefs/sparql-to-ld#readme",
   "dependencies": {
+    "@rdfjs/data-model": "2.1.1",
     "dotenv": "17.3.1",
     "fastify": "5.8.2",
     "n3": "2.0.3",
@@ -56,6 +57,7 @@
   "devDependencies": {
     "@types/n3": "1.26.1",
     "@types/node": "25.5.0",
+    "@types/rdfjs__data-model": "2.0.9",
     "@typescript-eslint/eslint-plugin": "8.57.1",
     "@typescript-eslint/parser": "8.57.1",
     "@vitest/ui": "4.1.0",
