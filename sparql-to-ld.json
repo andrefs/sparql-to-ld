@@ -6,7 +6,7 @@
   "uriMappings": [
     {
       "dsName": "dbpedia",
-      "endpoint": "http://localhost:3030/quiet-issue-2026-03-17-0",
+      "endpoint": "http://localhost:3030/quiet-issue-2026-03-17-0/sparql",
       "internalPrefix": "http://dbpedia.org/resource/",
       "externalPrefix": "http://localhost:3000/ld/dbpedia/"
     }

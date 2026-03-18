@@ -3,6 +3,7 @@ import { Readable } from 'stream';
 import StreamClient from 'sparql-http-client';
 import type { RdfFormat } from '../types/Resource.js';
 import { EndpointError } from '../types/Errors.js';
+import { describeResource } from './query-builder.js';
 
 /**
  * Wrapper around sparql-http-client providing a simplified interface
@@ -30,10 +31,9 @@ export class SparqlClient {
   ) {
     this.endpoint = endpoint;
     this.client = new StreamClient({
-      endpoint,
+      endpointUrl: endpoint,
       fetch: options?.fetch,
-      timeout: options?.timeout ?? 30000,
-      defaultHeaders: options?.headers,
+      headers: options?.headers,
     });
   }
 
@@ -47,9 +47,15 @@ export class SparqlClient {
    */
   async describe(resourceIri: string, format: RdfFormat): Promise<Readable> {
     try {
-      return await this.client.describe(resourceIri, {
-        accept: format,
-      });
+      const query = describeResource(resourceIri);
+      const headers = new Headers({ Accept: format });
+      const response = await this.client.get(query, { headers });
+
+      if (!response.ok) {
+        throw new Error(`SPARQL request failed: ${response.status} ${response.statusText}`);
+      }
+
+      return response.body;
     } catch (err) {
       throw new EndpointError(
         `Failed to describe resource from SPARQL endpoint: ${err instanceof Error ? err.message : String(err)}`,

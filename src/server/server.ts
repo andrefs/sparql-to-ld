@@ -104,33 +104,38 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
         headers: sparqlConfig?.headers,
       });
 
-      const rdfStream = await client.describe(internalIri, negotiated.format);
+      try {
+        const rdfStream = await client.describe(internalIri, negotiated.format);
 
-      // If translation is disabled and no translator, just stream response
-      if (!translateResponse || !translator) {
-        return reply.header('Content-Type', negotiated.format).send(rdfStream);
+        // If translation is disabled and no translator, just stream response
+        if (!translateResponse || !translator) {
+          return reply.header('Content-Type', negotiated.format).send(rdfStream);
+        }
+
+        // Otherwise, we need to parse, translate, and serialize
+        const rdfString = await streamToString(rdfStream);
+        const parser = new RdfParser();
+        const parsed = parser.parseWithMetadata(rdfString, negotiated.format);
+
+        // Translate dataset, prefixes, and base
+        const translatedDataset = translator.translateDataset(parsed.triples);
+        const translatedPrefixes = translator.translatePrefixes(parsed.prefixes);
+        const translatedBase = parsed.base ? translator.translateBase(parsed.base) : undefined;
+
+        // Serialize the translated result
+        const serializer = new RdfSerializer();
+        const result = serializer.serialize(translatedDataset, negotiated.format, {
+          prefixes: translatedPrefixes,
+          base: translatedBase,
+        });
+
+        reply.header('Content-Type', negotiated.format).send(result);
+      } catch (err) {
+        server.log.error({ err }, 'Request failed: ' + (err as Error).message);
+        handleError(err, reply, clientEndpoint, server);
       }
-
-      // Otherwise, we need to parse, translate, and serialize
-      const rdfString = await streamToString(rdfStream);
-      const parser = new RdfParser();
-      const parsed = parser.parseWithMetadata(rdfString, negotiated.format);
-
-      // Translate dataset, prefixes, and base
-      const translatedDataset = translator.translateDataset(parsed.triples);
-      const translatedPrefixes = translator.translatePrefixes(parsed.prefixes);
-      const translatedBase = parsed.base ? translator.translateBase(parsed.base) : undefined;
-
-      // Serialize the translated result
-      const serializer = new RdfSerializer();
-      const result = serializer.serialize(translatedDataset, negotiated.format, {
-        prefixes: translatedPrefixes,
-        base: translatedBase,
-      });
-
-      reply.header('Content-Type', negotiated.format).send(result);
     } catch (err) {
-      handleError(err, reply, config.sparql.endpoint, server);
+      handleError(err, reply, '', server);
     }
   });
 
