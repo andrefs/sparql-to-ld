@@ -177,7 +177,7 @@ export const serverConfigSchema = z.object({
         dsName: z.string(),
         endpoint: z.string().url(),
         internalPrefix: z.string(),
-        externalPrefix: z.string(),
+        externalPrefix: z.string().optional(),
       })
     )
     .optional(),

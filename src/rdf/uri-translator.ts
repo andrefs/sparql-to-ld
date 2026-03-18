@@ -3,9 +3,11 @@ import { Dataset, Iri, BlankNode, Literal } from '../types/Resource.js';
 
 export class UriTranslator {
   private mappings: UriMapping[];
+  private mappingExternalPrefixes: string[];
 
   constructor(mappings: UriMapping[]) {
     this.mappings = mappings;
+    this.mappingExternalPrefixes = mappings.map((m) => m.externalPrefix ?? '');
   }
 
   private normalizeHost(uri: string): string {
@@ -29,13 +31,15 @@ export class UriTranslator {
     let bestMatch: UriMapping | undefined;
     let maxLength = -1;
 
-    for (const mapping of this.mappings) {
-      const normalizedPrefix = this.normalizeHost(mapping.externalPrefix);
+    for (let i = 0; i < this.mappings.length; i++) {
+      const externalPrefix = this.mappingExternalPrefixes[i];
+      if (!externalPrefix) continue;
+      const normalizedPrefix = this.normalizeHost(externalPrefix);
       if (normalizedUri.startsWith(normalizedPrefix)) {
         const prefixLength = normalizedPrefix.length;
         if (prefixLength > maxLength) {
           maxLength = prefixLength;
-          bestMatch = mapping;
+          bestMatch = this.mappings[i];
         }
       }
     }
@@ -54,14 +58,16 @@ export class UriTranslator {
     let maxLength = -1;
     let matchedPrefixLength = 0;
 
-    for (const mapping of this.mappings) {
-      const normalizedPrefix = this.normalizeHost(mapping.externalPrefix);
+    for (let i = 0; i < this.mappings.length; i++) {
+      const externalPrefix = this.mappingExternalPrefixes[i];
+      if (!externalPrefix) continue;
+      const normalizedPrefix = this.normalizeHost(externalPrefix);
       if (normalizedUri.startsWith(normalizedPrefix)) {
         const prefixLength = normalizedPrefix.length;
         if (prefixLength > maxLength) {
           maxLength = prefixLength;
-          bestMatch = mapping;
-          matchedPrefixLength = mapping.externalPrefix.length;
+          bestMatch = this.mappings[i];
+          matchedPrefixLength = externalPrefix.length;
         }
       }
     }
@@ -110,7 +116,7 @@ export class UriTranslator {
     let maxLength = -1;
 
     for (const mapping of this.mappings) {
-      if (iri.startsWith(mapping.internalPrefix)) {
+      if (mapping.internalPrefix && iri.startsWith(mapping.internalPrefix)) {
         const prefixLength = mapping.internalPrefix.length;
         if (prefixLength > maxLength) {
           maxLength = prefixLength;
@@ -119,7 +125,7 @@ export class UriTranslator {
       }
     }
 
-    if (bestMatch) {
+    if (bestMatch && bestMatch.externalPrefix) {
       return bestMatch.externalPrefix + iri.slice(bestMatch.internalPrefix.length);
     }
 

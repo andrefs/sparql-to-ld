@@ -34,6 +34,27 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
   const SparqlClientClass = deps.SparqlClient ?? SparqlClient;
   const server = fastify();
 
+  const serverHost = config.host ?? '0.0.0.0';
+  const serverPort = config.port ?? 3000;
+
+  const getExternalPrefix = (dsName: string, explicitPrefix?: string): string => {
+    if (explicitPrefix) {
+      return explicitPrefix.endsWith('/') ? explicitPrefix : explicitPrefix + '/';
+    }
+    const normalizedHost = serverHost === '0.0.0.0' ? 'localhost' : serverHost;
+    return `http://${normalizedHost}:${serverPort}/ld/${dsName}/`;
+  };
+
+  const enrichMappings = () => {
+    if (!config.uriMappings) return [];
+    return config.uriMappings.map((m) => ({
+      ...m,
+      externalPrefix: m.externalPrefix ?? getExternalPrefix(m.dsName, m.externalPrefix),
+    }));
+  };
+
+  const enrichedMappings = enrichMappings();
+
   // CORS
   if (config.cors) {
     server.register(fastifyCors, {
@@ -79,8 +100,8 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
 
       // Create URI translator if mappings are configured
       const translator =
-        config.uriMappings && config.uriMappings.length > 0
-          ? new UriTranslator(config.uriMappings)
+        enrichedMappings && enrichedMappings.length > 0
+          ? new UriTranslator(enrichedMappings)
           : null;
 
       // Translate request IRI if translator is available

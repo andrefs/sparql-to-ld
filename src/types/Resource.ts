@@ -70,9 +70,9 @@ export interface UriMapping {
 
   /**
    * External URI prefix exposed to clients
-   * Typically: http://host/ld/{dsName}/
+   * If not provided, will be auto-generated as http://{host}:{port}/ld/{dsName}/
    */
-  externalPrefix: string;
+  externalPrefix?: string;
 }
 
 /**

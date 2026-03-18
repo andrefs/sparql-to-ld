@@ -11,8 +11,7 @@
     {
       "dsName": "my-dataset",
       "endpoint": "http://localhost:3030/my-dataset/sparql",
-      "internalPrefix": "http://dbpedia.org/resource/",
-      "externalPrefix": "http://localhost:3000/ld/my-dataset/"
+      "internalPrefix": "http://dbpedia.org/resource/"
     }
   ]
 }

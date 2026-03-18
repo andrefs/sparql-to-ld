@@ -7,12 +7,12 @@ Serve RDF resources' CBDs (Concise Bounded Descriptions) by translating Linked D
 - Translate external URIs to internal SPARQL endpoint URIs (request translation)
 - Translate internal SPARQL responses back to external URIs (response translation)
 - Per-dataset SPARQL endpoint configuration
-- Content negotiation (Turtle, N-Triples, RDF/XML, JSON-LD*)
+- Content negotiation (Turtle, N-Triples, RDF/XML, JSON-LD\*)
 - CORS support
 - Configurable via JSON file or environment variables
 - Usable as both CLI tool and library
 
-*JSON-LD parsing requires additional setup (see TODO below)
+\*JSON-LD parsing requires additional setup (see TODO below)
 
 ## Requirements
 
@@ -43,12 +43,13 @@ Create a `sparql-to-ld.json` file:
     {
       "dsName": "my-dataset",
       "endpoint": "http://localhost:3030/my-dataset/sparql",
-      "internalPrefix": "http://internal.data.example.org/",
-      "externalPrefix": "http://data.example.org/"
+      "internalPrefix": "http://dbpedia.org/resource/"
     }
   ]
 }
 ```
+
+> **Note:** `externalPrefix` is auto-generated as `http://{host}:{port}/ld/{dsName}/` if not specified.
 
 Alternatively, use environment variables:
 
@@ -59,17 +60,17 @@ PORT=3000
 
 ### Configuration Schema
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `server.host` | string | Server bind address (default: `0.0.0.0`) |
-| `server.port` | number | Server port (default: `3000`) |
-| `cors.origin` | string | CORS origin (default: `*`) |
-| `translateResponse` | boolean | Enable response URI translation (default: `true`) |
-| `uriMappings` | array | Array of dataset URI mappings |
-| `uriMappings[].dsName` | string | Dataset name for routing |
-| `uriMappings[].endpoint` | string | SPARQL endpoint URL (Fuseki format: `http://host:port/dataset/sparql`) |
-| `uriMappings[].internalPrefix` | string | Prefix used by the SPARQL endpoint |
-| `uriMappings[].externalPrefix` | string | Public-facing prefix for API |
+| Field                          | Type    | Description                                                            |
+| ------------------------------ | ------- | ---------------------------------------------------------------------- |
+| `server.host`                  | string  | Server bind address (default: `0.0.0.0`)                               |
+| `server.port`                  | number  | Server port (default: `3000`)                                          |
+| `cors.origin`                  | string  | CORS origin (default: `*`)                                             |
+| `translateResponse`            | boolean | Enable response URI translation (default: `true`)                      |
+| `uriMappings`                  | array   | Array of dataset URI mappings                                          |
+| `uriMappings[].dsName`         | string  | Dataset name for routing                                               |
+| `uriMappings[].endpoint`       | string  | SPARQL endpoint URL (Fuseki format: `http://host:port/dataset/sparql`) |
+| `uriMappings[].internalPrefix` | string  | Prefix used by the SPARQL endpoint                                     |
+| `uriMappings[].externalPrefix` | string  | Public-facing prefix (auto-generated if omitted)                       |
 
 ## Usage
 
@@ -104,7 +105,12 @@ await server.listen({ port: 3000 });
 import { UriTranslator } from 'sparql-to-ld';
 
 const translator = new UriTranslator([
-  { dsName: 'ds', endpoint: 'http://localhost:3030/ds/sparql', internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' }
+  {
+    dsName: 'ds',
+    endpoint: 'http://localhost:3030/ds/sparql',
+    internalPrefix: 'http://internal.org/',
+    externalPrefix: 'http://external.org/',
+  },
 ]);
 
 // Translate request URI (external -> internal)
@@ -159,12 +165,12 @@ curl http://localhost:3000/health
 
 ## Supported RDF Formats
 
-| Format | MIME Type | Parser | Writer |
-|--------|-----------|--------|---------|
-| Turtle | `text/turtle` | ✅ n3 | ✅ n3 |
-| N-Triples | `application/n-triples` | ✅ n3 | ✅ n3 |
-| RDF/XML | `application/rdf+xml` | ✅ n3 | ✅ n3 |
-| JSON-LD | `application/ld+json` | ❌ Requires additional setup | ✅ n3 |
+| Format    | MIME Type               | Parser                       | Writer |
+| --------- | ----------------------- | ---------------------------- | ------ |
+| Turtle    | `text/turtle`           | ✅ n3                        | ✅ n3  |
+| N-Triples | `application/n-triples` | ✅ n3                        | ✅ n3  |
+| RDF/XML   | `application/rdf+xml`   | ✅ n3                        | ✅ n3  |
+| JSON-LD   | `application/ld+json`   | ❌ Requires additional setup | ✅ n3  |
 
 ## Project Structure
 
