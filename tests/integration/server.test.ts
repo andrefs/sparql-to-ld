@@ -422,6 +422,14 @@ describe('Server Integration', () => {
         expect(response.json()).toEqual({
           status: 'ok',
           timestamp: expect.any(String),
+          mappings: [
+            {
+              dsName: 'dbpedia',
+              endpoint: 'http://localhost:9999/dataset',
+              internalPrefix: 'http://internal.org/',
+              externalPrefix: 'http://localhost:3000/ld/dbpedia/',
+            },
+          ],
         });
       });
     });

@@ -55,6 +55,16 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
 
   const enrichedMappings = enrichMappings();
 
+  // Log available mappings at startup
+  if (enrichedMappings.length > 0) {
+    server.log.info('Configured URI mappings:');
+    for (const mapping of enrichedMappings) {
+      server.log.info(`  ${mapping.dsName}: ${mapping.externalPrefix} -> ${mapping.endpoint}`);
+    }
+  } else {
+    server.log.warn('No URI mappings configured');
+  }
+
   // CORS
   if (config.cors) {
     server.register(fastifyCors, {
@@ -69,7 +79,16 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
 
   // Health check
   server.get('/health', async (_req: any, _reply: any) => {
-    return { status: 'ok', timestamp: new Date().toISOString() };
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      mappings: enrichedMappings.map((m) => ({
+        dsName: m.dsName,
+        endpoint: m.endpoint,
+        internalPrefix: m.internalPrefix,
+        externalPrefix: m.externalPrefix,
+      })),
+    };
   });
 
   // Resource endpoint
