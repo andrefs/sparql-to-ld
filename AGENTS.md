@@ -2,13 +2,13 @@
 
 ## Project Overview
 
-**Name:** sparql-to-ld  
-**Purpose:** Serve RDF resources' CBDs (Concise Bounded Descriptions) by translating Linked Data requests into SPARQL DESCRIBE queries.  
-**Status:** Project bootstrapped with dependencies and configuration. Source code implementation pending.  
+**Name:** sparql-to-ld
+**Purpose:** Serve RDF resources' CBDs (Concise Bounded Descriptions) by translating Linked Data requests into SPARQL DESCRIBE queries.
+**Status:** Core implementation complete. 30 tests passing.
 **Architecture:** TypeScript project usable both as a library (importable module) and as a command-line tool (CLI).
 
 **Tech Stack (Chosen):**
-- **Runtime:** Node.js LTS with ES Modules
+- **Runtime:** Node.js 18+ LTS with ES Modules
 - **HTTP Server:** Fastify
 - **RDF Library:** n3
 - **SPARQL Client:** sparql-http-client
@@ -16,16 +16,12 @@
 - **Linting:** ESLint (flat config format)
 - **Formatting:** Prettier
 - **Config Validation:** Zod
-- **CLI Framework:** commander (via yargs)
+- **CLI Framework:** commander
 - **Logger:** Pino
-
-**Important:** This document will evolve as the project is implemented. Update this file when significant changes are made to conventions or tooling.
 
 ---
 
 ## Build, Lint, Test Commands
-
-### Initial Setup (When package.json is created)
 
 ```bash
 # Install dependencies
@@ -39,14 +35,7 @@ npm run build
 
 # Start production server
 npm start
-```
 
-### Testing
-
-- **Test Framework:** Vitest for unit tests (fast, Vite-based)
-- **Integration Tests:** Vitest or separate framework (e.g., Supertest)
-
-```bash
 # Run all tests once
 npm test
 
@@ -59,16 +48,6 @@ npm run test:coverage
 # Run a single test file
 npm test -- path/to/testfile.test.ts
 
-# Run a single test by name
-npm test -- -t "test name pattern"
-
-# Run tests matching a pattern
-npm test -- path/to/**/*.test.ts
-```
-
-### Linting & Formatting
-
-```bash
 # Lint all files
 npm run lint
 
@@ -82,208 +61,100 @@ npm run format
 npm run typecheck
 ```
 
-### ESLint Configuration
-
-Uses ESLint's modern flat config format (`eslint.config.js`) with TypeScript parser. Configuration includes:
-- TypeScript-specific rules via `@typescript-eslint`
-- Node.js and ES2022 globals
-- Staged files pre-commit validation via Husky + lint-staged
-
 ---
 
 ## Code Style Guidelines
-
-### Language & Runtime
-
-- **Primary Language:** TypeScript (strict mode)
-- **Runtime:** Node.js (LTS version)
-- **Package Manager:** npm (or yarn/pnpm if preferred)
-
-### TypeScript Configuration
-
-```json
-{
-  "compilerOptions": {
-    "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "target": "ES2022",
-    "module": "Node16",
-    "moduleResolution": "node16",
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "declaration": true,
-    "sourceMap": true,
-    "resolveJsonModule": true,
-    "forceConsistentCasingInFileNames": true
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
-}
-```
 
 ### File Structure
 
 ```
 sparql-to-ld/
 ├── src/
-│   ├── index.ts          # Main entry point
-│   ├── server/           # HTTP server logic
-│   ├── sparql/           # SPARQL query construction
-│   ├── rdf/              # RDF parsing/serialization
-│   └── types/            # TypeScript type definitions
+│   ├── cli/             # CLI entry point
+│   ├── config/          # Configuration loading
+│   ├── rdf/             # RDF parsing, serialization, URI translation
+│   ├── server/          # Fastify HTTP server
+│   ├── sparql/          # SPARQL query construction and client
+│   └── types/           # TypeScript type definitions
 ├── tests/
-│   ├── unit/             # Unit tests
-│   ├── integration/      # Integration tests
-│   └── fixtures/         # Test fixtures (RDF data, queries)
-├── dist/                 # Compiled output (gitignored)
-├── package.json
-├── tsconfig.json
-├── eslint.config.js
-├── .prettierrc
+│   ├── integration/     # Server integration tests
+│   └── unit/            # Unit tests
+├── dist/                # Compiled output
+├── src/index.ts         # Main entry point (exports createServer, loadConfig, UriTranslator)
 └── AGENTS.md            # This file
 ```
 
 ### Naming Conventions
 
-- **Files:** Use kebab-case for filenames (`sparql-client.ts`, `rdf-parser.ts`)
-- **Classes:** PascalCase (`SparqlTranslator`, `RdfResponseParser`)
-- **Functions & methods:** camelCase (`describeResource`, `parseTriples`)
-- **Constants:** UPPER_SNAKE_CASE (`MAX_RESPONSE_SIZE`, `DEFAULT_TIMEOUT`)
-- **Types & interfaces:** PascalCase with `I` prefix optional, but be consistent (`ResourceDescriptor`, `SparqlQueryOptions`)
-- **Private members:** Prefix with `_` (`_privateMethod`, `_cache`)
+- **Files:** kebab-case (`sparql-client.ts`, `uri-translator.ts`)
+- **Classes:** PascalCase (`UriTranslator`, `SparqlClient`)
+- **Functions & methods:** camelCase (`describeResource`, `translateRequestUri`)
+- **Constants:** UPPER_SNAKE_CASE (`DEFAULT_TIMEOUT`, `SUPPORTED_FORMATS`)
+- **Types & interfaces:** PascalCase (`UriMapping`, `RdfFormat`)
+- **Private members:** Prefix with `_` (`_mappings`, `_base`)
 
 ### Imports Organization
 
 1. Node.js built-in modules (`fs`, `path`, `http`)
-2. Third-party dependencies (`express`, `n3`, `sparql-client`)
-3. Internal modules (`../types`, `../../utils`)
+2. Third-party dependencies (`fastify`, `n3`, `sparql-http-client`, `zod`)
+3. Internal modules (`./config`, `../types`)
 
-Use absolute imports when possible with `tsconfig.json` `baseUrl` configured.
+### Key Implementation Details
 
-```typescript
-import { Readable } from 'stream';
-import express from 'express';
-import { parse } from 'n3';
-import { ResourceDescriptor } from '@/types';
-```
-
-### Formatting
-
-- **Prettier** for code formatting
-- **Line length:** 80-100 characters
-- **Indentation:** 2 spaces (no tabs)
-- **Semicolons:** Required
-- **Trailing commas:** ES5+ style (`[1, 2, 3]`)
-- **Quotes:** Single quotes for strings, double quotes for JSX/HTML attributes
-
-### Error Handling
-
-- Use `try/catch` for async operations
-- Create custom error classes extending `Error` for domain-specific errors
-- Log errors with context using a structured logger (e.g., `pino`, `winston`)
-- Return appropriate HTTP status codes:
-  - `400` for malformed requests
-  - `404` for missing resources
-  - `500` for server errors
-- Never expose internal error details to clients in production
-
-```typescript
-class SparqlError extends Error {
-  constructor(
-    message: string,
-    public query: string,
-    public cause?: Error
-  ) {
-    super(message);
-    this.name = 'SparqlError';
-  }
-}
-```
+- Use `n3` Parser's internal `_prefixes` and `_base` to extract prefix/base metadata
+- Use `n3` Writer with `prefixes` constructor option for proper serialization
+- Use sparql-http-client's `client.get()` with `response.body` for raw RDF streams
+- sparql-http-client option name is `endpointUrl` (not `endpoint`)
+- Fuseki SPARQL endpoint format: `http://host:port/dataset/sparql`
+- Fastify wildcard route: `/ld/:dsName/*` with access via `req.params['*']`
+- URI translation: longest-prefix matching, bidirectional, skips literals and blank nodes
+- Translate prefix/base directives in RDF output via `writer._prefixes` and `writer._base`
+- Config loaded from: `sparql-to-ld.json` (default), `--config` CLI flag, `.env`, or `process.env`
 
 ### HTTP API Design
 
-- RESTful endpoints: `GET /resource/:id`
-- Accept `Accept` header for content negotiation (`text/turtle`, `application/ld+json`, etc.)
-- Query parameter for format override: `?format=ttl`
-- Use proper HTTP caching headers (`ETag`, `Last-Modified`, `Cache-Control`)
-- Implement CORS headers for cross-origin requests
+- Route: `GET /ld/:dsName/{*resourceUri}`
+- Query params: `format` (ttl/nt/jsonld/rdfxml), `translateResponse` (true/false)
+- Accept header for content negotiation
+- Health endpoint: `GET /health`
+- Return 400 for malformed URIs, 404 for missing datasets, 500 for server errors
 
 ### SPARQL Query Construction
 
-- Use parameterized queries to prevent SPARQL injection
-- Sanitize any user input that appears in queries
-- Construct DESCRIBE queries: `DESCRIBE ?resource WHERE { ?resource <uri> }`
-- Support for FedBox/CBD patterns with property paths
-- Set query timeouts and limits to prevent DoS
+- Use DESCRIBE queries: `DESCRIBE <uri>`
+- Set query timeout via `timeout` in SparqlClient constructor
+- Use sparql-http-client's `QueryStringClient` for simple endpoint queries
 
 ### RDF Handling
 
-- Use `n3` or `rdf-ext` for parsing/serializing
-- Support common RDF serializations: Turtle, N-Triples, JSON-LD
-- Validate input RDF data when necessary
-- Normalize IRIs and blank node identifiers consistently
+- n3 supports: Turtle, N-Triples, RDF/XML, N3 (NOT JSON-LD parsing)
+- JSON-LD serialization works but parsing requires `@rdfjs/parser-jsonld`
+- Blank nodes left unchanged by URI translator
 
 ### Testing Guidelines
 
-- Use **Vitest** for unit/integration tests (fast, Vite-based)
-- Place test files next to source: `foo.test.ts` or `foo.spec.ts`
-- Mock external SPARQL endpoints with `vi.mock()` or similar
-- Use test fixtures for sample RDF data (keep small)
-- Aim for high coverage of SPARQL query generation logic
-- Integration tests should spin up test server and make real HTTP requests
-
-```typescript
-// Example test structure
-import { describeResource } from '../src/sparql/translator';
-
-describe('SparqlTranslator', () => {
-  it('should generate DESCRIBE query for given URI', () => {
-    const query = describeResource('http://example.org/resource');
-    expect(query).toContain('DESCRIBE');
-    expect(query).toContain('<http://example.org/resource>');
-  });
-});
-```
-
-### Documentation
-
-- Use TSDoc for public APIs
-- Document complex algorithms and SPARQL patterns
-- Keep README.md updated with usage examples, API docs, and setup instructions
-
----
-
-## Cursor / Copilot Rules
-
-No `.cursorrules`, `.cursor/rules/`, or `.github/copilot-instructions.md` files exist yet. If you add them, ensure they align with this AGENTS.md document.
-
----
-
-## Notes for Agents
-
-- **Before making changes:** Check if package.json and other config files exist. If not, propose initial project setup.
-- **Follow TypeScript strict mode:** All new code must pass `tsc --noEmit` without errors.
-- **Test-driven development:** Write tests before implementation when adding new features.
-- **Update this document:** When choosing specific tools (Express, Fastify, Jest, Vitest, ESLint, Prettier), update AGENTS.md with the actual commands and configurations.
-- **Security:** Validate and sanitize all user inputs. Use HTTPS in production. Follow OWASP recommendations.
-- **Performance:** Cache SPARQL query results when appropriate. Use streaming for large RDF responses.
-- **Compatibility:** Ensure SPARQL 1.1 compliance. Support standard RDF serializations.
+- Use **Vitest** for unit and integration tests
+- Place test files next to source: `uri-translator.test.ts`
+- Mock sparql-http-client with `vi.mock()` or use integration tests with fake responses
+- Unit tests: `tests/unit/rdf/uri-translator.test.ts` (13 tests)
+- Integration tests: `tests/integration/server.test.ts` (17 tests)
 
 ---
 
 ## Current Repository State
 
-**⚠️ WARNING:** This repository contains only a README.md file. No source code, build scripts, or test suites exist. Any task requiring execution of `npm` commands will fail until the project is initialized.
+**Core implementation complete.** All 30 tests pass, typecheck and lint clean.
 
-**Next steps for bootstrapping:**
-1. Choose framework (Express, Fastify, Koa)
-2. Initialize with `npm init -y`
-3. Install TypeScript and core dependencies
-4. Set up tsconfig.json, ESLint, Prettier
-5. Create basic folder structure
-6. Implement minimal server with one endpoint
-7. Write first tests
-8. Update this AGENTS.md with actual commands
+**TODO:**
+- JSON-LD parsing support (requires `@rdfjs/parser-jsonld`)
+- Streaming response support for large datasets
+- Caching layer for SPARQL responses
+- Prometheus metrics endpoint
+- Rate limiting
+- Authentication/authorization
+- Support for CONSTRUCT queries
+
+**Important n3 discoveries:**
+- Parser doesn't have an `on()` event emitter API - must use internal `_prefixes` and `_base`
+- Writer must receive prefixes via constructor options, not `addPrefixes()` for `quadsToString()`
+- JSON-LD parsing is NOT supported by n3

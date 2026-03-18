@@ -1,17 +1,16 @@
 # sparql-to-ld
 
-⚠️ This is a vibe-coded / experimental project.
-Expect breaking changes, rough edges, and incomplete features.
-
 Serve RDF resources' CBDs (Concise Bounded Descriptions) by translating Linked Data requests into SPARQL DESCRIBE queries.
 
 ## Features
 
 - Translate external URIs to internal SPARQL endpoint URIs (request translation)
 - Translate internal SPARQL responses back to external URIs (response translation)
+- Per-dataset SPARQL endpoint configuration
 - Content negotiation (Turtle, N-Triples, RDF/XML, JSON-LD*)
 - CORS support
-- Configurable via YAML or environment variables
+- Configurable via JSON file or environment variables
+- Usable as both CLI tool and library
 
 *JSON-LD parsing requires additional setup (see TODO below)
 
@@ -28,34 +27,49 @@ npm run build
 
 ## Configuration
 
-Create a `config.yaml` file:
+Create a `sparql-to-ld.json` file:
 
-```yaml
-server:
-  host: "0.0.0.0"
-  port: 3000
-
-sparql:
-  endpoint: "http://localhost:3030/dataset"
-  timeout: 30000
-
-cors:
-  origin: "*"
-
-uriMappings:
-  - internalPrefix: "http://internal.data.example.org/"
-    externalPrefix: "http://data.example.org/"
-
-translateResponse: true
+```json
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 3000
+  },
+  "cors": {
+    "origin": "*"
+  },
+  "translateResponse": true,
+  "uriMappings": [
+    {
+      "dsName": "my-dataset",
+      "endpoint": "http://localhost:3030/my-dataset/sparql",
+      "internalPrefix": "http://internal.data.example.org/",
+      "externalPrefix": "http://data.example.org/"
+    }
+  ]
+}
 ```
 
 Alternatively, use environment variables:
 
 ```bash
-SPARQL_ENDPOINT=http://localhost:3030/dataset
 TRANSLATE_RESPONSE=true
 PORT=3000
 ```
+
+### Configuration Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `server.host` | string | Server bind address (default: `0.0.0.0`) |
+| `server.port` | number | Server port (default: `3000`) |
+| `cors.origin` | string | CORS origin (default: `*`) |
+| `translateResponse` | boolean | Enable response URI translation (default: `true`) |
+| `uriMappings` | array | Array of dataset URI mappings |
+| `uriMappings[].dsName` | string | Dataset name for routing |
+| `uriMappings[].endpoint` | string | SPARQL endpoint URL (Fuseki format: `http://host:port/dataset/sparql`) |
+| `uriMappings[].internalPrefix` | string | Prefix used by the SPARQL endpoint |
+| `uriMappings[].externalPrefix` | string | Public-facing prefix for API |
 
 ## Usage
 
@@ -66,7 +80,7 @@ PORT=3000
 npm start
 
 # With custom config file
-npx sparql-to-ld --config /path/to/config.yaml
+npx sparql-to-ld --config /path/to/sparql-to-ld.json
 
 # Development mode with hot reload
 npm run dev
@@ -77,37 +91,11 @@ npm run dev
 #### Basic Usage
 
 ```typescript
-import { createServer } from 'sparql-to-ld';
-import { loadConfig } from 'sparql-to-ld';
+import { createServer, loadConfig } from 'sparql-to-ld';
 
-const config = loadConfig('./config.yaml');
+const config = loadConfig('./sparql-to-ld.json');
 const server = await createServer(config);
 await server.listen({ port: 3000 });
-```
-
-#### Custom SPARQL Client
-
-```typescript
-import { createServer, ServerDeps } from 'sparql-to-ld';
-import type { FastifyInstance } from 'fastify';
-import { loadConfig } from 'sparql-to-ld';
-
-// Create a custom SPARQL client
-class CustomSparqlClient {
-  constructor(
-    private endpoint: string,
-    private options?: { timeout?: number; headers?: Record<string, string> }
-  ) {}
-
-  async describe(resourceIri: string, format: string) {
-    // Your implementation
-    return yourReadableStream;
-  }
-}
-
-const config = loadConfig('./config.yaml');
-const deps: ServerDeps = { SparqlClient: CustomSparqlClient };
-const server = await createServer(config, deps);
 ```
 
 #### URI Translation Only
@@ -116,7 +104,7 @@ const server = await createServer(config, deps);
 import { UriTranslator } from 'sparql-to-ld';
 
 const translator = new UriTranslator([
-  { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' }
+  { dsName: 'ds', endpoint: 'http://localhost:3030/ds/sparql', internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' }
 ]);
 
 // Translate request URI (external -> internal)
@@ -124,7 +112,6 @@ const internalIri = translator.translateRequestUri('http://external.org/resource
 // Result: 'http://internal.org/resource'
 
 // Translate response dataset (internal -> external)
-const dataset = [{ subject: 'http://internal.org/resource', predicate: 'http://p', object: { value: 'test' } }];
 const translated = translator.translateDataset(dataset);
 // IRIs in dataset are now prefixed with external prefix
 ```
@@ -133,9 +120,9 @@ const translated = translator.translateDataset(dataset);
 
 ### Endpoints
 
-#### `GET /resource/{iri}`
+#### `GET /ld/:dsName/{*resourceUri}`
 
-Retrieve a resource's CBD (Concise Bounded Description).
+Retrieve a resource's CBD (Concise Bounded Description) from the specified dataset.
 
 **Query Parameters:**
 
@@ -149,9 +136,17 @@ Retrieve a resource's CBD (Concise Bounded Description).
 **Example:**
 
 ```bash
-curl http://localhost:3000/resource/http://data.example.org/person/1
-curl http://localhost:3000/resource/http://data.example.org/person/1?format=nt
-curl -H "Accept: application/ld+json" http://localhost:3000/resource/http://data.example.org/person/1
+# Retrieve resource from dataset "my-dataset"
+curl http://localhost:3000/ld/my-dataset/http://data.example.org/person/1
+
+# Request as N-Triples
+curl http://localhost:3000/ld/my-dataset/http://data.example.org/person/1?format=nt
+
+# Content negotiation via Accept header
+curl -H "Accept: application/ld+json" http://localhost:3000/ld/my-dataset/http://data.example.org/person/1
+
+# Disable response URI translation
+curl http://localhost:3000/ld/my-dataset/http://data.example.org/person/1?translateResponse=false
 ```
 
 #### `GET /health`
@@ -180,7 +175,7 @@ sparql-to-ld/
 │   ├── config/          # Configuration loading
 │   ├── rdf/             # RDF parsing, serialization, URI translation
 │   ├── server/          # Fastify HTTP server
-│   ├── sparql/          # SPARQL query construction
+│   ├── sparql/          # SPARQL query construction and client
 │   └── types/           # TypeScript type definitions
 ├── tests/
 │   ├── integration/     # Server integration tests
