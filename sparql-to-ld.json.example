@@ -1,0 +1,18 @@
+{
+  "$schema": "https://example.com/sparql-to-ld-config-schema.json",
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0",
+    "cors": {
+      "origin": "*"
+    }
+  },
+  "sparql": {
+    "endpoint": "http://localhost:3030/dataset",
+    "timeout": 30000,
+    "maxResults": 10000
+  },
+  "logging": {
+    "level": "info"
+  }
+}
