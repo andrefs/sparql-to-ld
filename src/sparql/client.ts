@@ -1,7 +1,7 @@
 import { Readable } from 'stream';
-// Using any for now; sparql-http-client doesn't have its own types
-const SparqlHttpClient: any = require('sparql-http-client');
-import { RdfFormat } from '../types/Resource.js';
+// @ts-expect-error - sparql-http-client lacks types
+import StreamClient from 'sparql-http-client';
+import type { RdfFormat } from '../types/Resource.js';
 import { EndpointError } from '../types/Errors.js';
 
 /**
@@ -9,7 +9,7 @@ import { EndpointError } from '../types/Errors.js';
  * for executing DESCRIBE queries and retrieving RDF data.
  */
 export class SparqlClient {
-  private client: any;
+  private client: StreamClient;
   private endpoint: string;
 
   /**
@@ -29,7 +29,7 @@ export class SparqlClient {
     }
   ) {
     this.endpoint = endpoint;
-    this.client = new SparqlHttpClient({
+    this.client = new StreamClient({
       endpoint,
       fetch: options?.fetch,
       timeout: options?.timeout ?? 30000,
