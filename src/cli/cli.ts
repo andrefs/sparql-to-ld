@@ -90,6 +90,7 @@ Example config file (sparql-to-ld.json):
       config.host = options.host;
     }
     if (options.endpoint) {
+      config.sparql = config.sparql ?? { endpoint: options.endpoint };
       config.sparql.endpoint = options.endpoint;
     }
 
@@ -101,7 +102,10 @@ Example config file (sparql-to-ld.json):
     });
 
     console.log(`Server listening at ${address}`);
-    console.log(`SPARQL endpoint: ${config.sparql.endpoint}`);
+    const endpointInfo = config.uriMappings?.length
+      ? `${config.uriMappings.length} mapping(s) configured`
+      : `SPARQL endpoint: ${config.sparql?.endpoint ?? 'none'}`;
+    console.log(endpointInfo);
     console.log(`URI mappings: ${config.uriMappings?.length ?? 0} configured`);
     console.log(
       `Response translation: ${(config.translateResponse ?? true) ? 'enabled' : 'disabled'}`

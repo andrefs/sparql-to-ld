@@ -88,12 +88,18 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
 
       // Find matching mapping for logging/endpoint selection
       const mapping = translator?.findMappingForIri(externalIri);
-      const endpoint = mapping?.endpoint ?? config.sparql?.endpoint ?? '';
+      const sparqlConfig = config.sparql;
+      const clientEndpoint = mapping?.endpoint ?? sparqlConfig?.endpoint;
 
       server.log.info(`[${dsName}] Request for ${externalIri} -> ${internalIri}`);
 
-      const sparqlConfig = config.sparql;
-      const client = new SparqlClientClass(endpoint || sparqlConfig.endpoint, {
+      if (!clientEndpoint) {
+        throw new Error('No SPARQL endpoint configured');
+      }
+
+      server.log.info(`Using SPARQL endpoint: ${clientEndpoint}`);
+
+      const client = new SparqlClientClass(clientEndpoint, {
         timeout: sparqlConfig?.timeout,
         headers: sparqlConfig?.headers,
       });

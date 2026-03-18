@@ -74,9 +74,13 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Serve
   }
 
   // Validate final configuration
-  const result = serverConfigSchema.parse(config);
+  const result = serverConfigSchema.safeParse(config);
 
-  return result;
+  if (!result.success) {
+    throw new ConfigurationError('Invalid configuration', { cause: result.error });
+  }
+
+  return result.data as ServerConfig;
 }
 
 /**

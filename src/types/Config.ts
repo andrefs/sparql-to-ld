@@ -163,7 +163,8 @@ export const serverConfigSchema = z.object({
       maxResults: z.number().int().positive().optional(),
       headers: z.record(z.string(), z.string()).optional(),
     })
-    .strict(),
+    .strict()
+    .optional(),
   logging: z
     .object({
       level: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).optional(),
