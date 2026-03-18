@@ -163,7 +163,7 @@ export const serverConfigSchema = z.object({
       maxResults: z.number().int().positive().optional(),
       headers: z.record(z.string(), z.string()).optional(),
     })
-    .required(),
+    .strict(),
   logging: z
     .object({
       level: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).optional(),
@@ -173,6 +173,8 @@ export const serverConfigSchema = z.object({
   uriMappings: z
     .array(
       z.object({
+        dsName: z.string(),
+        endpoint: z.string().url(),
         internalPrefix: z.string(),
         externalPrefix: z.string(),
       })

@@ -1,5 +1,6 @@
 import fastify, { FastifyInstance } from 'fastify';
 import { Readable } from 'stream';
+import fastifyCors from '@fastify/cors';
 import { ServerConfig } from '../types/Config.js';
 import { SparqlClient } from '../sparql/client.js';
 import { RDF_FORMATS, RdfParser, RdfSerializer } from '../rdf/parser-serializer.js';
@@ -35,8 +36,7 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
 
   // CORS
   if (config.cors) {
-    const cors = require('@fastify/cors');
-    server.register(cors, {
+    server.register(fastifyCors, {
       origin: config.cors.origin ?? '*',
       credentials: config.cors.credentials,
       methods: config.cors.methods ?? ['GET'],
@@ -52,11 +52,17 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
   });
 
   // Resource endpoint
-  server.get('/resource/*', async (req: any, reply: any) => {
+  server.get('/ld/:dsName/*', async (req: any, reply: any) => {
     try {
-      const iri = req.params['*'];
+      const dsName = req.params.dsName;
+      const pathSuffix = req.params['*'];
 
-      if (!iri || iri.trim() === '') {
+      // Reconstruct full external IRI from request
+      const protocol = req.headers['x-forwarded-proto'] ?? 'http';
+      const host = req.headers.host ?? 'localhost:3000';
+      const externalIri = `${protocol}://${host}/ld/${dsName}/${pathSuffix}`;
+
+      if (!pathSuffix || pathSuffix.trim() === '') {
         throw new InvalidIriError('Resource IRI is required');
       }
 
@@ -78,12 +84,18 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
           : null;
 
       // Translate request IRI if translator is available
-      const internalIri = translator ? translator.translateRequestUri(iri) : iri;
+      const internalIri = translator ? translator.translateRequestUri(externalIri) : externalIri;
+
+      // Find matching mapping for logging/endpoint selection
+      const mapping = translator?.findMappingForIri(externalIri);
+      const endpoint = mapping?.endpoint ?? config.sparql?.endpoint ?? '';
+
+      server.log.info(`[${dsName}] Request for ${externalIri} -> ${internalIri}`);
 
       const sparqlConfig = config.sparql;
-      const client = new SparqlClientClass(sparqlConfig.endpoint, {
-        timeout: sparqlConfig.timeout,
-        headers: sparqlConfig.headers,
+      const client = new SparqlClientClass(endpoint || sparqlConfig.endpoint, {
+        timeout: sparqlConfig?.timeout,
+        headers: sparqlConfig?.headers,
       });
 
       const rdfStream = await client.describe(internalIri, negotiated.format);

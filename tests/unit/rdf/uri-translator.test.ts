@@ -5,7 +5,12 @@ describe('UriTranslator', () => {
   describe('translateRequestUri', () => {
     it('should translate external URI to internal URI using prefix mapping', () => {
       const translator = new UriTranslator([
-        { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' },
+        {
+          dsName: 'test',
+          endpoint: 'http://localhost:9999/test',
+          internalPrefix: 'http://internal.org/',
+          externalPrefix: 'http://external.org/',
+        },
       ]);
 
       const result = translator.translateRequestUri('http://external.org/resource');
@@ -14,7 +19,12 @@ describe('UriTranslator', () => {
 
     it('should return original URI if no mapping matches', () => {
       const translator = new UriTranslator([
-        { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' },
+        {
+          dsName: 'test',
+          endpoint: 'http://localhost:9999/test',
+          internalPrefix: 'http://internal.org/',
+          externalPrefix: 'http://external.org/',
+        },
       ]);
 
       const result = translator.translateRequestUri('http://other.org/resource');
@@ -23,8 +33,18 @@ describe('UriTranslator', () => {
 
     it('should handle multiple mappings', () => {
       const translator = new UriTranslator([
-        { internalPrefix: 'http://internal1.org/', externalPrefix: 'http://external1.org/' },
-        { internalPrefix: 'http://internal2.org/', externalPrefix: 'http://external2.org/' },
+        {
+          dsName: 'test1',
+          endpoint: 'http://localhost:9999/test1',
+          internalPrefix: 'http://internal1.org/',
+          externalPrefix: 'http://external1.org/',
+        },
+        {
+          dsName: 'test2',
+          endpoint: 'http://localhost:9999/test2',
+          internalPrefix: 'http://internal2.org/',
+          externalPrefix: 'http://external2.org/',
+        },
       ]);
 
       expect(translator.translateRequestUri('http://external1.org/resource')).toBe(
@@ -37,8 +57,15 @@ describe('UriTranslator', () => {
 
     it('should translate using longest prefix match', () => {
       const translator = new UriTranslator([
-        { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' },
         {
+          dsName: 'test',
+          endpoint: 'http://localhost:9999/test',
+          internalPrefix: 'http://internal.org/',
+          externalPrefix: 'http://external.org/',
+        },
+        {
+          dsName: 'specific',
+          endpoint: 'http://localhost:9999/specific',
           internalPrefix: 'http://internal.org/specific/',
           externalPrefix: 'http://external.org/specific/',
         },
@@ -52,7 +79,12 @@ describe('UriTranslator', () => {
   describe('translateDataset', () => {
     it('should translate all URIs in triples from internal to external', () => {
       const translator = new UriTranslator([
-        { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' },
+        {
+          dsName: 'test',
+          endpoint: 'http://localhost:9999/test',
+          internalPrefix: 'http://internal.org/',
+          externalPrefix: 'http://external.org/',
+        },
       ]);
 
       const dataset = [
@@ -75,7 +107,12 @@ describe('UriTranslator', () => {
 
     it('should translate blank nodes unchanged', () => {
       const translator = new UriTranslator([
-        { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' },
+        {
+          dsName: 'test',
+          endpoint: 'http://localhost:9999/test',
+          internalPrefix: 'http://internal.org/',
+          externalPrefix: 'http://external.org/',
+        },
       ]);
 
       const dataset = [
@@ -93,7 +130,12 @@ describe('UriTranslator', () => {
     it('should translate literals with IRIs in value? (probably not needed - literals contain plain text)', () => {
       // This is a design decision: we likely don't translate URIs inside literal values
       const translator = new UriTranslator([
-        { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' },
+        {
+          dsName: 'test',
+          endpoint: 'http://localhost:9999/test',
+          internalPrefix: 'http://internal.org/',
+          externalPrefix: 'http://external.org/',
+        },
       ]);
 
       const dataset = [
@@ -114,7 +156,12 @@ describe('UriTranslator', () => {
 
     it('should handle empty dataset', () => {
       const translator = new UriTranslator([
-        { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' },
+        {
+          dsName: 'test',
+          endpoint: 'http://localhost:9999/test',
+          internalPrefix: 'http://internal.org/',
+          externalPrefix: 'http://external.org/',
+        },
       ]);
 
       const result = translator.translateDataset([]);
@@ -123,7 +170,12 @@ describe('UriTranslator', () => {
 
     it('should skip translation when disabled via flag', () => {
       const translator = new UriTranslator([
-        { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' },
+        {
+          dsName: 'test',
+          endpoint: 'http://localhost:9999/test',
+          internalPrefix: 'http://internal.org/',
+          externalPrefix: 'http://external.org/',
+        },
       ]);
 
       const dataset = [
@@ -142,7 +194,12 @@ describe('UriTranslator', () => {
   describe('translatePrefixes', () => {
     it('should translate PREFIX declarations in Turtle-like format', () => {
       const translator = new UriTranslator([
-        { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' },
+        {
+          dsName: 'test',
+          endpoint: 'http://localhost:9999/test',
+          internalPrefix: 'http://internal.org/',
+          externalPrefix: 'http://external.org/',
+        },
       ]);
 
       const prefixes = {
@@ -159,7 +216,12 @@ describe('UriTranslator', () => {
 
     it('should leave prefixes unchanged if no mapping matches', () => {
       const translator = new UriTranslator([
-        { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' },
+        {
+          dsName: 'test',
+          endpoint: 'http://localhost:9999/test',
+          internalPrefix: 'http://internal.org/',
+          externalPrefix: 'http://external.org/',
+        },
       ]);
 
       const prefixes = {
@@ -174,7 +236,12 @@ describe('UriTranslator', () => {
   describe('translateBase', () => {
     it('should translate BASE IRI', () => {
       const translator = new UriTranslator([
-        { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' },
+        {
+          dsName: 'test',
+          endpoint: 'http://localhost:9999/test',
+          internalPrefix: 'http://internal.org/',
+          externalPrefix: 'http://external.org/',
+        },
       ]);
 
       const result = translator.translateBase('http://internal.org/base/');
@@ -183,7 +250,12 @@ describe('UriTranslator', () => {
 
     it('should return undefined if no base or no mapping', () => {
       const translator = new UriTranslator([
-        { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' },
+        {
+          dsName: 'test',
+          endpoint: 'http://localhost:9999/test',
+          internalPrefix: 'http://internal.org/',
+          externalPrefix: 'http://external.org/',
+        },
       ]);
 
       expect(translator.translateBase('http://other.org/base/')).toBeUndefined();

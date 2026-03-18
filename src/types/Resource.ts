@@ -53,7 +53,25 @@ export type RdfFormat =
  * URI mapping configuration for translating between internal and external URI spaces
  */
 export interface UriMapping {
+  /**
+   * Short name for this mapping (used in URL path, e.g., 'dbpedia')
+   */
+  dsName: string;
+
+  /**
+   * SPARQL endpoint URL for this dataset
+   */
+  endpoint: string;
+
+  /**
+   * Base URI used in the SPARQL endpoint (internal namespace)
+   */
   internalPrefix: string;
+
+  /**
+   * External URI prefix exposed to clients
+   * Typically: http://host/ld/{dsName}/
+   */
   externalPrefix: string;
 }
 

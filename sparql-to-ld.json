@@ -1,9 +1,14 @@
 {
-  "sparql": {
-    "endpoint": "http://localhost:3030/quiet-issue-2026-03-17-0"
-  },
   "cors": {
     "origin": "*"
   },
-  "translateResponse": false
+  "translateResponse": true,
+  "uriMappings": [
+    {
+      "dsName": "dbpedia",
+      "endpoint": "http://localhost:3030/quiet-issue-2026-03-17-0",
+      "internalPrefix": "http://dbpedia.org/resource/",
+      "externalPrefix": "http://localhost:3000/ld/dbpedia/"
+    }
+  ]
 }

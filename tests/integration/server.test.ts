@@ -92,7 +92,7 @@ function createMockSparqlClientClass(
 function createConfig(overrides: Partial<ServerConfig> = {}): ServerConfig {
   return {
     sparql: {
-      endpoint: 'http://mock-sparql:3030/dataset',
+      endpoint: 'http://mock-sparql:9999/dataset',
       timeout: 30000,
     },
     cors: { origin: '*' },
@@ -113,7 +113,12 @@ describe('Server Integration', () => {
   beforeAll(() => {
     baseConfig = createConfig({
       uriMappings: [
-        { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' },
+        {
+          dsName: 'dbpedia',
+          endpoint: 'http://localhost:9999/dataset',
+          internalPrefix: 'http://internal.org/',
+          externalPrefix: 'http://localhost:3000/ld/dbpedia/',
+        },
       ],
       translateResponse: true,
     });
@@ -126,7 +131,7 @@ describe('Server Integration', () => {
     }
   });
 
-  describe('GET /resource/:iri', () => {
+  describe('GET /ld/:dsName/*', () => {
     it('should return RDF data without translation when no mappings configured', async () => {
       const config = createConfig({ uriMappings: undefined });
       const deps: ServerDeps = { SparqlClient: createMockSparqlClientClass(SAMPLE_TURTLE) };
@@ -135,7 +140,7 @@ describe('Server Integration', () => {
 
       const response = await server.inject({
         method: 'GET',
-        url: '/resource/http://example.org/resource',
+        url: '/ld/dbpedia/example',
         headers: { accept: 'text/turtle' },
       });
 
@@ -151,7 +156,7 @@ describe('Server Integration', () => {
 
       const response = await server.inject({
         method: 'GET',
-        url: '/resource/http://external.org/subject',
+        url: '/ld/dbpedia/subject',
         headers: { accept: 'text/turtle' },
       });
 
@@ -166,7 +171,7 @@ describe('Server Integration', () => {
 
       const response = await server.inject({
         method: 'GET',
-        url: '/resource/http://external.org/subject',
+        url: '/ld/dbpedia/subject',
         headers: { accept: 'text/turtle' },
       });
 
@@ -182,7 +187,7 @@ describe('Server Integration', () => {
 
       const response = await server.inject({
         method: 'GET',
-        url: '/resource/http://external.org/subject?translateResponse=false',
+        url: '/ld/dbpedia/subject?translateResponse=false',
         headers: { accept: 'text/turtle' },
       });
 
@@ -202,12 +207,12 @@ describe('Server Integration', () => {
 
       const response = await server.inject({
         method: 'GET',
-        url: '/resource/http://external.org/subject',
+        url: '/ld/dbpedia/subject',
         headers: { accept: 'text/turtle' },
       });
 
       expect(response.statusCode).toBe(200);
-      expect(response.body.toString()).toContain('http://external.org/');
+      expect(response.body.toString()).toContain('http://localhost:3000/ld/dbpedia/');
     });
 
     it('should use config.translateResponse default when false', async () => {
@@ -221,7 +226,7 @@ describe('Server Integration', () => {
 
       const response = await server.inject({
         method: 'GET',
-        url: '/resource/http://external.org/subject',
+        url: '/ld/dbpedia/subject',
         headers: { accept: 'text/turtle' },
       });
 
@@ -236,7 +241,7 @@ describe('Server Integration', () => {
 
       const response = await server.inject({
         method: 'GET',
-        url: '/resource/',
+        url: '/ld/dbpedia/',
         headers: { accept: 'text/turtle' },
       });
 
@@ -252,7 +257,7 @@ describe('Server Integration', () => {
 
       const response = await server.inject({
         method: 'GET',
-        url: '/resource/http://external.org/subject',
+        url: '/ld/dbpedia/subject',
         headers: { accept: 'text/turtle' },
       });
 
@@ -268,7 +273,7 @@ describe('Server Integration', () => {
 
         const response = await server.inject({
           method: 'GET',
-          url: '/resource/http://external.org/subject?format=ttl',
+          url: '/ld/dbpedia/subject?format=ttl',
         });
 
         expect(response.statusCode).toBe(200);
@@ -282,7 +287,7 @@ describe('Server Integration', () => {
 
         const response = await server.inject({
           method: 'GET',
-          url: '/resource/http://external.org/subject?translateResponse=false',
+          url: '/ld/dbpedia/subject?translateResponse=false',
           headers: { accept: 'application/ld+json' },
         });
 
@@ -298,7 +303,7 @@ describe('Server Integration', () => {
 
         const response = await server.inject({
           method: 'GET',
-          url: '/resource/http://external.org/subject',
+          url: '/ld/dbpedia/subject',
         });
 
         expect(response.statusCode).toBe(200);
@@ -312,7 +317,7 @@ describe('Server Integration', () => {
 
         const response = await server.inject({
           method: 'GET',
-          url: '/resource/http://external.org/subject?format=nt',
+          url: '/ld/dbpedia/subject?format=nt',
         });
 
         expect(response.statusCode).toBe(200);
@@ -324,8 +329,18 @@ describe('Server Integration', () => {
       it('should apply multiple mappings correctly', async () => {
         const config = createConfig({
           uriMappings: [
-            { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external1.org/' },
-            { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external2.org/' },
+            {
+              dsName: 'test1',
+              endpoint: 'http://localhost:9999/test1',
+              internalPrefix: 'http://internal.org/',
+              externalPrefix: 'http://external1.org/',
+            },
+            {
+              dsName: 'test2',
+              endpoint: 'http://localhost:9999/test2',
+              internalPrefix: 'http://internal.org/',
+              externalPrefix: 'http://external2.org/',
+            },
           ],
         });
         const deps: ServerDeps = { SparqlClient: MockSparqlClient };
@@ -334,7 +349,7 @@ describe('Server Integration', () => {
 
         const response = await server.inject({
           method: 'GET',
-          url: '/resource/http://external1.org/subject',
+          url: '/ld/dbpedia/subject',
           headers: { accept: 'text/turtle' },
         });
 
@@ -345,8 +360,18 @@ describe('Server Integration', () => {
       it('should choose longest prefix match', async () => {
         const config = createConfig({
           uriMappings: [
-            { internalPrefix: 'http://internal.org/', externalPrefix: 'http://other.org/' },
-            { internalPrefix: 'http://internal.org/', externalPrefix: 'http://external.org/' },
+            {
+              dsName: 'other',
+              endpoint: 'http://localhost:9999/other',
+              internalPrefix: 'http://internal.org/',
+              externalPrefix: 'http://other.org/',
+            },
+            {
+              dsName: 'ext',
+              endpoint: 'http://localhost:9999/ext',
+              internalPrefix: 'http://internal.org/',
+              externalPrefix: 'http://external.org/',
+            },
           ],
         });
         const deps: ServerDeps = { SparqlClient: MockSparqlClient };
@@ -355,7 +380,7 @@ describe('Server Integration', () => {
 
         const response = await server.inject({
           method: 'GET',
-          url: '/resource/http://external.org/subject',
+          url: '/ld/dbpedia/subject',
           headers: { accept: 'text/turtle' },
         });
 
@@ -373,7 +398,7 @@ describe('Server Integration', () => {
 
         const response = await server.inject({
           method: 'GET',
-          url: '/resource/http://external.org/subject',
+          url: '/ld/dbpedia/subject',
           headers: { accept: 'text/turtle' },
         });
 

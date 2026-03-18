@@ -9,6 +9,27 @@ export class UriTranslator {
   }
 
   /**
+   * Find the mapping that matches a given external IRI.
+   * Returns the mapping with the longest matching external prefix.
+   */
+  findMappingForIri(uri: string): UriMapping | undefined {
+    let bestMatch: UriMapping | undefined;
+    let maxLength = -1;
+
+    for (const mapping of this.mappings) {
+      if (uri.startsWith(mapping.externalPrefix)) {
+        const prefixLength = mapping.externalPrefix.length;
+        if (prefixLength > maxLength) {
+          maxLength = prefixLength;
+          bestMatch = mapping;
+        }
+      }
+    }
+
+    return bestMatch;
+  }
+
+  /**
    * Translate a request URI from external to internal format.
    * Finds the mapping where the external prefix matches and replaces with internal prefix.
    */
