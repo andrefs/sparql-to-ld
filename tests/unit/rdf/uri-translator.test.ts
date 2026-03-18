@@ -74,6 +74,22 @@ describe('UriTranslator', () => {
       const result = translator.translateRequestUri('http://external.org/specific/resource');
       expect(result).toBe('http://internal.org/specific/resource');
     });
+
+    it('should normalize localhost and 127.0.0.1 as equivalent', () => {
+      const translator = new UriTranslator([
+        {
+          dsName: 'dbpedia',
+          endpoint: 'http://localhost:3030/dbpedia/sparql',
+          internalPrefix: 'http://dbpedia.org/',
+          externalPrefix: 'http://localhost:3000/ld/dbpedia/',
+        },
+      ]);
+
+      const result = translator.translateRequestUri(
+        'http://127.0.0.1:3000/ld/dbpedia/resource/Cheddar'
+      );
+      expect(result).toBe('http://dbpedia.org/resource/Cheddar');
+    });
   });
 
   describe('translateDataset', () => {

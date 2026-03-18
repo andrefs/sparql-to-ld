@@ -8,17 +8,31 @@ export class UriTranslator {
     this.mappings = mappings;
   }
 
+  private normalizeHost(uri: string): string {
+    try {
+      const url = new URL(uri);
+      if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+        url.hostname = 'localhost';
+      }
+      return url.toString().replace(/\/$/, '');
+    } catch {
+      return uri;
+    }
+  }
+
   /**
    * Find the mapping that matches a given external IRI.
    * Returns the mapping with the longest matching external prefix.
    */
   findMappingForIri(uri: string): UriMapping | undefined {
+    const normalizedUri = this.normalizeHost(uri);
     let bestMatch: UriMapping | undefined;
     let maxLength = -1;
 
     for (const mapping of this.mappings) {
-      if (uri.startsWith(mapping.externalPrefix)) {
-        const prefixLength = mapping.externalPrefix.length;
+      const normalizedPrefix = this.normalizeHost(mapping.externalPrefix);
+      if (normalizedUri.startsWith(normalizedPrefix)) {
+        const prefixLength = normalizedPrefix.length;
         if (prefixLength > maxLength) {
           maxLength = prefixLength;
           bestMatch = mapping;
@@ -34,22 +48,26 @@ export class UriTranslator {
    * Finds the mapping where the external prefix matches and replaces with internal prefix.
    */
   translateRequestUri(uri: string): string {
-    // Find the longest matching external prefix
+    const normalizedUri = this.normalizeHost(uri);
+
     let bestMatch: UriMapping | null = null;
     let maxLength = -1;
+    let matchedPrefixLength = 0;
 
     for (const mapping of this.mappings) {
-      if (uri.startsWith(mapping.externalPrefix)) {
-        const prefixLength = mapping.externalPrefix.length;
+      const normalizedPrefix = this.normalizeHost(mapping.externalPrefix);
+      if (normalizedUri.startsWith(normalizedPrefix)) {
+        const prefixLength = normalizedPrefix.length;
         if (prefixLength > maxLength) {
           maxLength = prefixLength;
           bestMatch = mapping;
+          matchedPrefixLength = mapping.externalPrefix.length;
         }
       }
     }
 
     if (bestMatch) {
-      return bestMatch.internalPrefix + uri.slice(bestMatch.externalPrefix.length);
+      return bestMatch.internalPrefix + uri.slice(matchedPrefixLength);
     }
 
     return uri;
@@ -61,7 +79,6 @@ export class UriTranslator {
    * Blank nodes and literals are left unchanged.
    */
   translateDataset(dataset: Dataset, options?: { translateResponse?: boolean }): Dataset {
-    // If translation is disabled, return dataset as-is
     if (options?.translateResponse === false) {
       return dataset;
     }
@@ -73,36 +90,22 @@ export class UriTranslator {
     }));
   }
 
-  /**
-   * Translate a single node (IRI, blank node, or literal)
-   */
   private translateNode(node: Iri | BlankNode | Literal): Iri | BlankNode | Literal {
     if (this.isBlankNode(node) || this.isLiteral(node)) {
-      return node; // blank nodes and literals unchanged
+      return node;
     }
-    // It's an IRI string
     return this.translateIri(node);
   }
 
-  /**
-   * Check if node is a blank node identifier
-   */
   private isBlankNode(node: Iri | BlankNode | Literal): node is BlankNode {
     return typeof node === 'string' && node.startsWith('_:');
   }
 
-  /**
-   * Check if node is a literal
-   */
   private isLiteral(node: Iri | BlankNode | Literal): node is Literal {
     return typeof node !== 'string' && 'value' in node;
   }
 
-  /**
-   * Translate an IRI from internal to external format
-   */
   private translateIri(iri: Iri): Iri {
-    // Find the longest matching internal prefix
     let bestMatch: UriMapping | null = null;
     let maxLength = -1;
 
@@ -123,9 +126,6 @@ export class UriTranslator {
     return iri;
   }
 
-  /**
-   * Translate prefix declarations (e.g., in Turtle: @prefix ex: <http://internal.org/>)
-   */
   translatePrefixes(prefixes: Record<string, string>): Record<string, string> {
     const result: Record<string, string> = {};
 
@@ -141,9 +141,6 @@ export class UriTranslator {
     return result;
   }
 
-  /**
-   * Translate BASE directive
-   */
   translateBase(base: string): string | undefined {
     const translated = this.translateIri(base);
     return translated !== base ? translated : undefined;
