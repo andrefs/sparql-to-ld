@@ -1,11 +1,36 @@
 import fastify, { FastifyInstance } from 'fastify';
+import { Readable } from 'stream';
 import { ServerConfig } from '../types/Config.js';
 import { SparqlClient } from '../sparql/client.js';
-import { RDF_FORMATS } from '../rdf/parser-serializer.js';
+import { RDF_FORMATS, RdfParser, RdfSerializer } from '../rdf/parser-serializer.js';
+import { UriTranslator } from '../rdf/uri-translator.js';
 import { RdfFormat, NegotiatedFormat } from '../types/Resource.js';
 import { InvalidIriError, UnsupportedFormatError, EndpointError } from '../types/Errors.js';
 
-export function createServer(config: ServerConfig): FastifyInstance {
+function streamToString(stream: Readable): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    stream.on('data', (chunk: Buffer | string) => {
+      data += chunk;
+    });
+    stream.on('end', () => resolve(data));
+    stream.on('error', reject);
+  });
+}
+
+interface SparqlClientLike {
+  describe(resourceIri: string, format: string): Promise<Readable>;
+}
+
+export interface ServerDeps {
+  SparqlClient?: new (
+    endpoint: string,
+    options?: { timeout?: number; headers?: Record<string, string> }
+  ) => SparqlClientLike;
+}
+
+export function createServer(config: ServerConfig, deps: ServerDeps = {}): FastifyInstance {
+  const SparqlClientClass = deps.SparqlClient ?? SparqlClient;
   const server = fastify();
 
   // CORS
@@ -27,10 +52,9 @@ export function createServer(config: ServerConfig): FastifyInstance {
   });
 
   // Resource endpoint
-  server.get('/resource/:iri(*)', async (req: any, reply: any) => {
+  server.get('/resource/*', async (req: any, reply: any) => {
     try {
-      const encodedIri = req.params.iri;
-      const iri = decodeURIComponent(encodedIri);
+      const iri = req.params['*'];
 
       if (!iri || iri.trim() === '') {
         throw new InvalidIriError('Resource IRI is required');
@@ -38,17 +62,55 @@ export function createServer(config: ServerConfig): FastifyInstance {
 
       const acceptHeader = req.headers.accept as string | undefined;
       const formatQuery = req.query.format as string | undefined;
+      const translateResponseQuery = req.query.translateResponse as string | undefined;
       const negotiated = negotiateFormat(acceptHeader, formatQuery);
 
+      // Determine if response translation is enabled (config default: true)
+      const translateResponse =
+        translateResponseQuery !== undefined
+          ? translateResponseQuery !== 'false'
+          : (config.translateResponse ?? true);
+
+      // Create URI translator if mappings are configured
+      const translator =
+        config.uriMappings && config.uriMappings.length > 0
+          ? new UriTranslator(config.uriMappings)
+          : null;
+
+      // Translate request IRI if translator is available
+      const internalIri = translator ? translator.translateRequestUri(iri) : iri;
+
       const sparqlConfig = config.sparql;
-      const client = new SparqlClient(sparqlConfig.endpoint, {
+      const client = new SparqlClientClass(sparqlConfig.endpoint, {
         timeout: sparqlConfig.timeout,
         headers: sparqlConfig.headers,
       });
 
-      const rdfStream = await client.describe(iri, negotiated.format);
+      const rdfStream = await client.describe(internalIri, negotiated.format);
 
-      reply.header('Content-Type', negotiated.format).send(rdfStream);
+      // If translation is disabled and no translator, just stream response
+      if (!translateResponse || !translator) {
+        return reply.header('Content-Type', negotiated.format).send(rdfStream);
+      }
+
+      // Otherwise, we need to parse, translate, and serialize
+      const rdfString = await streamToString(rdfStream);
+      const parser = new RdfParser();
+      const parsed = parser.parseWithMetadata(rdfString, negotiated.format);
+
+      // Translate dataset, prefixes, and base
+      const translatedDataset = translator.translateDataset(parsed.triples);
+      const translatedPrefixes = translator.translatePrefixes(parsed.prefixes);
+      const translatedBase = parsed.base ? translator.translateBase(parsed.base) : undefined;
+
+      // Serialize the translated result
+      const serializer = new RdfSerializer();
+      const result = serializer.serialize(translatedDataset, negotiated.format, {
+        prefixes: translatedPrefixes,
+        base: translatedBase,
+      });
+
+      reply.header('Content-Type', negotiated.format).send(result);
     } catch (err) {
       handleError(err, reply, config.sparql.endpoint, server);
     }
@@ -103,18 +165,14 @@ export function createServer(config: ServerConfig): FastifyInstance {
 
   function handleError(err: any, reply: any, endpoint: string, server: any) {
     if (err instanceof InvalidIriError) {
-      reply.code(400);
-      return { error: err.message, details: { iri: (err as any).iri } };
+      reply.code(400).send({ error: err.message, details: { iri: (err as any).iri } });
     } else if (err instanceof UnsupportedFormatError) {
-      reply.code(406);
-      return { error: err.message, format: (err as any).format };
+      reply.code(406).send({ error: err.message, format: (err as any).format });
     } else if (err instanceof EndpointError) {
-      reply.code(502);
-      return { error: err.message, endpoint };
+      reply.code(502).send({ error: err.message, endpoint });
     } else {
       server.log.error(err, 'Error handling request');
-      reply.code(500);
-      return { error: 'Internal server error' };
+      reply.code(500).send({ error: 'Internal server error' });
     }
   }
 

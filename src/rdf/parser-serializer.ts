@@ -4,9 +4,6 @@ import { RdfParseError } from '../types/Errors.js';
 
 const { namedNode, blankNode, literal, quad } = DataFactory;
 
-/**
- * Supported RDF formats and their MIME types
- */
 export const RDF_FORMATS: Record<RdfFormat, { parserFormat: string; writerFormat: string }> = {
   'text/turtle': { parserFormat: 'Turtle', writerFormat: 'Turtle' },
   'application/n-triples': { parserFormat: 'N-Triples', writerFormat: 'N-Triples' },
@@ -14,9 +11,6 @@ export const RDF_FORMATS: Record<RdfFormat, { parserFormat: string; writerFormat
   'application/rdf+xml': { parserFormat: 'RDF/XML', writerFormat: 'RDF/XML' },
 };
 
-/**
- * Convert n3 quad to internal Triple format
- */
 function quadToTriple(q: Quad): Triple {
   return {
     subject: nodeToIriOrBlankNode(q.subject),
@@ -25,46 +19,24 @@ function quadToTriple(q: Quad): Triple {
   };
 }
 
-/**
- * Convert n3 node to Iri or BlankNode string
- */
 function nodeToIriOrBlankNode(node: any): Iri | BlankNode {
-  if (node.termType === 'NamedNode') {
-    return node.value;
-  } else if (node.termType === 'BlankNode') {
-    return node.value;
-  } else {
-    throw new RdfParseError(`Unexpected node type in subject/object: ${node.termType}`);
-  }
+  if (node.termType === 'NamedNode') return node.value;
+  if (node.termType === 'BlankNode') return node.value;
+  throw new RdfParseError(`Unexpected node type in subject/object: ${node.termType}`);
 }
 
-/**
- * Convert n3 node to Iri, BlankNode, or Literal
- */
 function nodeToIriOrLiteral(node: any): Iri | BlankNode | Literal {
-  if (node.termType === 'NamedNode') {
-    return node.value;
-  } else if (node.termType === 'BlankNode') {
-    return node.value;
-  } else if (node.termType === 'Literal') {
-    const lit: Literal = {
-      value: node.value,
-    };
-    // In RDF, a literal can have either a language tag OR a datatype, not both
-    if (node.language) {
-      lit.language = node.language;
-    } else if (node.datatype) {
-      lit.datatype = node.datatype.value;
-    }
+  if (node.termType === 'NamedNode') return node.value;
+  if (node.termType === 'BlankNode') return node.value;
+  if (node.termType === 'Literal') {
+    const lit: Literal = { value: node.value };
+    if (node.language) lit.language = node.language;
+    else if (node.datatype) lit.datatype = node.datatype.value;
     return lit;
-  } else {
-    throw new RdfParseError(`Cannot convert node type ${node.termType} to literal/iri`);
   }
+  throw new RdfParseError(`Cannot convert node type ${node.termType} to literal/iri`);
 }
 
-/**
- * Convert internal Triple to n3 quad
- */
 function tripleToN3Quad(triple: Triple): Quad {
   const { subject, predicate, object } = triple;
   const s =
@@ -73,43 +45,28 @@ function tripleToN3Quad(triple: Triple): Quad {
       : namedNode(subject);
   const p = namedNode(predicate);
   const o = nodeToN3Object(object);
-  // Use quad() to create a Quad. The fourth argument (graph) is omitted for default graph.
   return quad(s, p, o);
 }
 
-/**
- * Convert internal object to n3 object
- */
 function nodeToN3Object(obj: Iri | BlankNode | Literal): any {
   if (typeof obj === 'string') {
-    if (obj.startsWith('_:')) {
-      return blankNode(obj);
-    } else {
-      return namedNode(obj);
-    }
-  } else {
-    // Literal - n3's literal() takes (value, languageOrDatatype?)
-    // We can only specify one: either language or datatype
-    if (obj.language) {
-      return literal(obj.value, obj.language);
-    } else if (obj.datatype) {
-      return literal(obj.value, namedNode(obj.datatype));
-    } else {
-      return literal(obj.value);
-    }
+    return obj.startsWith('_:') ? blankNode(obj) : namedNode(obj);
   }
+  if (obj.language) return literal(obj.value, obj.language);
+  if (obj.datatype) return literal(obj.value, namedNode(obj.datatype));
+  return literal(obj.value);
 }
 
 /**
- * RDF Parser: Parse RDF data in various formats into Dataset
+ * Result of parsing RDF with metadata (prefixes and base)
  */
+export interface ParseResult {
+  triples: Dataset;
+  prefixes: Record<string, string>;
+  base?: string;
+}
+
 export class RdfParser {
-  /**
-   * Parse RDF data string into a Dataset
-   * @param data - RDF data as string
-   * @param format - MIME type of the input format
-   * @returns Dataset (array of triples)
-   */
   parse(data: string, format: RdfFormat): Dataset {
     const { parserFormat } = RDF_FORMATS[format];
     const parser = new Parser({ format: parserFormat as any });
@@ -117,17 +74,32 @@ export class RdfParser {
     return quads.map(quadToTriple);
   }
 
-  /**
-   * Parse RDF data with automatic format detection from MIME type
-   */
+  parseWithMetadata(data: string, format: RdfFormat): ParseResult {
+    const { parserFormat } = RDF_FORMATS[format];
+    const parser = new Parser({ format: parserFormat as any });
+
+    const quads = parser.parse(data) as Quad[];
+
+    const prefixes: Record<string, string> = {};
+    const parserAny = parser as any;
+    if (parserAny._prefixes) {
+      Object.assign(prefixes, parserAny._prefixes);
+    }
+
+    const base = parserAny._base as string | undefined;
+
+    return {
+      triples: quads.map(quadToTriple),
+      prefixes,
+      base,
+    };
+  }
+
   parseWithMime(data: string, mimeType: string): Dataset {
     const format = this.mimeToFormat(mimeType);
     return this.parse(data, format);
   }
 
-  /**
-   * Convert MIME type to RdfFormat
-   */
   private mimeToFormat(mimeType: string): RdfFormat {
     const normalized = mimeType.split(';')[0].trim();
     switch (normalized) {
@@ -145,41 +117,46 @@ export class RdfParser {
   }
 }
 
-/**
- * RDF Serializer: Convert Dataset to RDF string in various formats
- */
 export class RdfSerializer {
-  /**
-   * Serialize a Dataset to RDF string in the specified format
-   * @param dataset - Dataset (array of triples)
-   * @param format - Desired output format MIME type
-   * @returns RDF data as string
-   */
-  serialize(dataset: Dataset, format: RdfFormat): string {
+  serialize(
+    dataset: Dataset,
+    format: RdfFormat,
+    options?: { prefixes?: Record<string, string>; base?: string }
+  ): string {
     const { writerFormat } = RDF_FORMATS[format];
-    const writer = new Writer({ format: writerFormat as any });
-    const quads = dataset.map(tripleToN3Quad);
+    const writerOptions: any = { format: writerFormat as any };
+    if (options?.prefixes) writerOptions.prefixes = options.prefixes;
+    if (options?.base) writerOptions.base = options.base;
+    const writer = new Writer(writerOptions);
 
-    // Add all quads to writer
+    const quads = dataset.map(tripleToN3Quad);
     for (const q of quads) {
       writer.addQuad(q);
     }
 
-    // Use quadsToString to get the result
-    return writer.quadsToString(quads);
+    const quadsOutput = writer.quadsToString(quads);
+
+    if (format !== 'text/turtle') {
+      return quadsOutput;
+    }
+
+    let result = '';
+    if (options?.base) {
+      result += `@base <${options.base}> .\n`;
+    }
+    if (options?.prefixes) {
+      for (const [prefix, iri] of Object.entries(options.prefixes)) {
+        result += `@prefix ${prefix}: <${iri}> .\n`;
+      }
+    }
+    return result + quadsOutput;
   }
 
-  /**
-   * Serialize dataset with automatic MIME type mapping
-   */
   serializeWithMime(dataset: Dataset, mimeType: string): string {
     const format = this.mimeToFormat(mimeType);
     return this.serialize(dataset, format);
   }
 
-  /**
-   * Convert MIME type to RdfFormat
-   */
   private mimeToFormat(mimeType: string): RdfFormat {
     const normalized = mimeType.split(';')[0].trim();
     switch (normalized) {
@@ -197,7 +174,6 @@ export class RdfSerializer {
   }
 }
 
-// Re-export convenience functions
 export function parseRdf(data: string, format: RdfFormat): Dataset {
   return new RdfParser().parse(data, format);
 }
