@@ -16,6 +16,9 @@ build/
 .env.local
 .env.*.local
 
+# Local config (use sparql-to-ld.json.example as template)
+sparql-to-ld.json
+
 # IDE
 .vscode/
 .idea/
