@@ -50,29 +50,48 @@ export type RdfFormat =
   | 'application/rdf+xml';
 
 /**
- * URI mapping configuration for translating between internal and external URI spaces
+ * Supported endpoint modes for retrieving RDF resources
  */
-export interface UriMapping {
-  /**
-   * Short name for this mapping (used in URL path, e.g., 'dbpedia')
-   */
+export type EndpointMode =
+  | 'describe'
+  | 'fwd-one'
+  | 'fwd-two'
+  | 'back-one'
+  | 'back-two'
+  | 'sym-one'
+  | 'sym-two';
+
+/**
+ * A SPARQL endpoint with mode configuration
+ */
+export interface SparqlEndpoint {
+  type: 'sparql';
+  mode: EndpointMode;
+  url: string;
+  headers?: Record<string, string>;
+}
+
+/**
+ * An HTTP endpoint for direct CBD access (e.g., Fuseki's /data?uri=)
+ */
+export interface HttpEndpoint {
+  type: 'http';
+  url: string;
+  headers?: Record<string, string>;
+}
+
+/**
+ * An endpoint (SPARQL or HTTP)
+ */
+export type Endpoint = SparqlEndpoint | HttpEndpoint;
+
+/**
+ * A data source configuration containing multiple endpoints
+ */
+export interface Source {
   dsName: string;
-
-  /**
-   * SPARQL endpoint URL for this dataset
-   */
-  endpoint: string;
-
-  /**
-   * Base URI used in the SPARQL endpoint (internal namespace)
-   */
-  internalPrefix: string;
-
-  /**
-   * External URI prefix exposed to clients
-   * If not provided, will be auto-generated as http://{host}:{port}/ld/{dsName}/
-   */
-  externalPrefix?: string;
+  originalPrefix: string;
+  endpoints: Endpoint[];
 }
 
 /**

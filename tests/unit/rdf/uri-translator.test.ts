@@ -7,13 +7,12 @@ describe('UriTranslator', () => {
       const translator = new UriTranslator([
         {
           dsName: 'test',
-          endpoint: 'http://localhost:9999/test',
-          internalPrefix: 'http://internal.org/',
-          externalPrefix: 'http://external.org/',
+          originalPrefix: 'http://internal.org/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test' }],
         },
       ]);
 
-      const result = translator.translateRequestUri('http://external.org/resource');
+      const result = translator.translateRequestUri('http://localhost:3000/ld/test/resource');
       expect(result).toBe('http://internal.org/resource');
     });
 
@@ -21,9 +20,8 @@ describe('UriTranslator', () => {
       const translator = new UriTranslator([
         {
           dsName: 'test',
-          endpoint: 'http://localhost:9999/test',
-          internalPrefix: 'http://internal.org/',
-          externalPrefix: 'http://external.org/',
+          originalPrefix: 'http://internal.org/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test' }],
         },
       ]);
 
@@ -35,22 +33,20 @@ describe('UriTranslator', () => {
       const translator = new UriTranslator([
         {
           dsName: 'test1',
-          endpoint: 'http://localhost:9999/test1',
-          internalPrefix: 'http://internal1.org/',
-          externalPrefix: 'http://external1.org/',
+          originalPrefix: 'http://internal1.org/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test1' }],
         },
         {
           dsName: 'test2',
-          endpoint: 'http://localhost:9999/test2',
-          internalPrefix: 'http://internal2.org/',
-          externalPrefix: 'http://external2.org/',
+          originalPrefix: 'http://internal2.org/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test2' }],
         },
       ]);
 
-      expect(translator.translateRequestUri('http://external1.org/resource')).toBe(
+      expect(translator.translateRequestUri('http://localhost:3000/ld/test1/resource')).toBe(
         'http://internal1.org/resource'
       );
-      expect(translator.translateRequestUri('http://external2.org/resource')).toBe(
+      expect(translator.translateRequestUri('http://localhost:3000/ld/test2/resource')).toBe(
         'http://internal2.org/resource'
       );
     });
@@ -59,19 +55,17 @@ describe('UriTranslator', () => {
       const translator = new UriTranslator([
         {
           dsName: 'test',
-          endpoint: 'http://localhost:9999/test',
-          internalPrefix: 'http://internal.org/',
-          externalPrefix: 'http://external.org/',
+          originalPrefix: 'http://internal.org/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test' }],
         },
         {
           dsName: 'specific',
-          endpoint: 'http://localhost:9999/specific',
-          internalPrefix: 'http://internal.org/specific/',
-          externalPrefix: 'http://external.org/specific/',
+          originalPrefix: 'http://internal.org/specific/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/specific' }],
         },
       ]);
 
-      const result = translator.translateRequestUri('http://external.org/specific/resource');
+      const result = translator.translateRequestUri('http://localhost:3000/ld/specific/resource');
       expect(result).toBe('http://internal.org/specific/resource');
     });
 
@@ -79,9 +73,10 @@ describe('UriTranslator', () => {
       const translator = new UriTranslator([
         {
           dsName: 'dbpedia',
-          endpoint: 'http://localhost:3030/dbpedia/sparql',
-          internalPrefix: 'http://dbpedia.org/',
-          externalPrefix: 'http://localhost:3000/ld/dbpedia/',
+          originalPrefix: 'http://dbpedia.org/',
+          endpoints: [
+            { type: 'sparql', mode: 'describe', url: 'http://localhost:3030/dbpedia/sparql' },
+          ],
         },
       ]);
 
@@ -97,9 +92,8 @@ describe('UriTranslator', () => {
       const translator = new UriTranslator([
         {
           dsName: 'test',
-          endpoint: 'http://localhost:9999/test',
-          internalPrefix: 'http://internal.org/',
-          externalPrefix: 'http://external.org/',
+          originalPrefix: 'http://internal.org/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test' }],
         },
       ]);
 
@@ -114,9 +108,9 @@ describe('UriTranslator', () => {
       const result = translator.translateDataset(dataset);
       expect(result).toEqual([
         {
-          subject: 'http://external.org/subject',
-          predicate: 'http://external.org/predicate',
-          object: 'http://external.org/object',
+          subject: 'http://localhost:3000/ld/test/subject',
+          predicate: 'http://localhost:3000/ld/test/predicate',
+          object: 'http://localhost:3000/ld/test/object',
         },
       ]);
     });
@@ -125,9 +119,8 @@ describe('UriTranslator', () => {
       const translator = new UriTranslator([
         {
           dsName: 'test',
-          endpoint: 'http://localhost:9999/test',
-          internalPrefix: 'http://internal.org/',
-          externalPrefix: 'http://external.org/',
+          originalPrefix: 'http://internal.org/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test' }],
         },
       ]);
 
@@ -148,9 +141,8 @@ describe('UriTranslator', () => {
       const translator = new UriTranslator([
         {
           dsName: 'test',
-          endpoint: 'http://localhost:9999/test',
-          internalPrefix: 'http://internal.org/',
-          externalPrefix: 'http://external.org/',
+          originalPrefix: 'http://internal.org/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test' }],
         },
       ]);
 
@@ -174,9 +166,8 @@ describe('UriTranslator', () => {
       const translator = new UriTranslator([
         {
           dsName: 'test',
-          endpoint: 'http://localhost:9999/test',
-          internalPrefix: 'http://internal.org/',
-          externalPrefix: 'http://external.org/',
+          originalPrefix: 'http://internal.org/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test' }],
         },
       ]);
 
@@ -188,9 +179,8 @@ describe('UriTranslator', () => {
       const translator = new UriTranslator([
         {
           dsName: 'test',
-          endpoint: 'http://localhost:9999/test',
-          internalPrefix: 'http://internal.org/',
-          externalPrefix: 'http://external.org/',
+          originalPrefix: 'http://internal.org/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test' }],
         },
       ]);
 
@@ -212,9 +202,8 @@ describe('UriTranslator', () => {
       const translator = new UriTranslator([
         {
           dsName: 'test',
-          endpoint: 'http://localhost:9999/test',
-          internalPrefix: 'http://internal.org/',
-          externalPrefix: 'http://external.org/',
+          originalPrefix: 'http://internal.org/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test' }],
         },
       ]);
 
@@ -225,8 +214,8 @@ describe('UriTranslator', () => {
 
       const result = translator.translatePrefixes(prefixes);
       expect(result).toEqual({
-        ex: 'http://external.org/example',
-        base: 'http://external.org/base/',
+        ex: 'http://localhost:3000/ld/test/example',
+        base: 'http://localhost:3000/ld/test/base/',
       });
     });
 
@@ -234,9 +223,8 @@ describe('UriTranslator', () => {
       const translator = new UriTranslator([
         {
           dsName: 'test',
-          endpoint: 'http://localhost:9999/test',
-          internalPrefix: 'http://internal.org/',
-          externalPrefix: 'http://external.org/',
+          originalPrefix: 'http://internal.org/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test' }],
         },
       ]);
 
@@ -254,23 +242,21 @@ describe('UriTranslator', () => {
       const translator = new UriTranslator([
         {
           dsName: 'test',
-          endpoint: 'http://localhost:9999/test',
-          internalPrefix: 'http://internal.org/',
-          externalPrefix: 'http://external.org/',
+          originalPrefix: 'http://internal.org/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test' }],
         },
       ]);
 
       const result = translator.translateBase('http://internal.org/base/');
-      expect(result).toBe('http://external.org/base/');
+      expect(result).toBe('http://localhost:3000/ld/test/base/');
     });
 
     it('should return undefined if no base or no mapping', () => {
       const translator = new UriTranslator([
         {
           dsName: 'test',
-          endpoint: 'http://localhost:9999/test',
-          internalPrefix: 'http://internal.org/',
-          externalPrefix: 'http://external.org/',
+          originalPrefix: 'http://internal.org/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test' }],
         },
       ]);
 

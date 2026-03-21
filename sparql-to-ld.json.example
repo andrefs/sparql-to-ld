@@ -7,11 +7,44 @@
     "origin": "*"
   },
   "translateResponse": true,
-  "uriMappings": [
+  "sources": [
     {
       "dsName": "my-dataset",
-      "endpoint": "http://localhost:3030/my-dataset/sparql",
-      "internalPrefix": "http://dbpedia.org/resource/"
+      "originalPrefix": "http://dbpedia.org/resource/",
+      "endpoints": [
+        {
+          "type": "sparql",
+          "mode": "describe",
+          "url": "http://localhost:3030/my-dataset/sparql"
+        }
+      ]
+    },
+    {
+      "dsName": "linked-data",
+      "originalPrefix": "http://example.org/internal/",
+      "endpoints": [
+        {
+          "type": "sparql",
+          "mode": "fwd-one",
+          "url": "http://localhost:3030/linked-data/sparql"
+        },
+        {
+          "type": "http",
+          "url": "http://localhost:8080/data/"
+        }
+      ]
+    },
+    {
+      "dsName": "symmetrical",
+      "originalPrefix": "http://internal.org/",
+      "endpoints": [
+        {
+          "type": "sparql",
+          "mode": "sym-one",
+          "url": "http://localhost:9999/sym/sparql"
+        }
+      ]
     }
   ]
 }
+

@@ -1,73 +1,41 @@
 import fastify, { FastifyInstance } from 'fastify';
-import { Readable } from 'stream';
 import fastifyCors from '@fastify/cors';
 import { ServerConfig } from '../types/Config.js';
-import { SparqlClient } from '../sparql/client.js';
-import { RDF_FORMATS, RdfParser, RdfSerializer } from '../rdf/parser-serializer.js';
+import { SourceManager } from '../sources/manager.js';
+import { RDF_FORMATS, RdfSerializer } from '../rdf/parser-serializer.js';
 import { UriTranslator } from '../rdf/uri-translator.js';
-import { RdfFormat, NegotiatedFormat } from '../types/Resource.js';
-import { InvalidIriError, UnsupportedFormatError, EndpointError } from '../types/Errors.js';
-
-function streamToString(stream: Readable): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    stream.on('data', (chunk: Buffer | string) => {
-      data += chunk;
-    });
-    stream.on('end', () => resolve(data));
-    stream.on('error', reject);
-  });
-}
-
-interface SparqlClientLike {
-  describe(resourceIri: string, format: string): Promise<Readable>;
-}
+import { RdfFormat, NegotiatedFormat, Source } from '../types/Resource.js';
+import { InvalidIriError, UnsupportedFormatError } from '../types/Errors.js';
 
 export interface ServerDeps {
-  SparqlClient?: new (
-    endpoint: string,
-    options?: { timeout?: number; headers?: Record<string, string> }
-  ) => SparqlClientLike;
+  SourceManager?: typeof SourceManager;
 }
 
 export function createServer(config: ServerConfig, deps: ServerDeps = {}): FastifyInstance {
-  const SparqlClientClass = deps.SparqlClient ?? SparqlClient;
+  const SourceManagerClass = deps.SourceManager ?? SourceManager;
   const server = fastify();
 
-  const serverHost = config.host ?? '0.0.0.0';
-  const serverPort = config.port ?? 3000;
+  const serverHost = config.server?.host ?? '0.0.0.0';
+  const serverPort = config.server?.port ?? 3000;
+  const baseUrl = `http://${serverHost === '0.0.0.0' ? 'localhost' : serverHost}:${serverPort}`;
 
-  const getExternalPrefix = (dsName: string, explicitPrefix?: string): string => {
-    if (explicitPrefix) {
-      return explicitPrefix.endsWith('/') ? explicitPrefix : explicitPrefix + '/';
-    }
-    const normalizedHost = serverHost === '0.0.0.0' ? 'localhost' : serverHost;
-    return `http://${normalizedHost}:${serverPort}/ld/${dsName}/`;
-  };
+  const sources = (config.sources ?? []) as Source[];
 
-  const enrichMappings = () => {
-    if (!config.uriMappings) return [];
-    return config.uriMappings.map((m) => ({
-      ...m,
-      externalPrefix: m.externalPrefix ?? getExternalPrefix(m.dsName, m.externalPrefix),
-    }));
-  };
-
-  const enrichedMappings = enrichMappings();
-
-  // Log available mappings at startup
-  if (enrichedMappings.length > 0) {
-    server.log.info('Configured URI mappings:');
-    for (const mapping of enrichedMappings) {
+  if (sources.length > 0) {
+    server.log.info('Configured sources:');
+    for (const source of sources) {
+      const externalPrefix = `${baseUrl}/ld/${source.dsName}/`;
+      const endpoints = source.endpoints
+        .map((e) => `${e.type}:${e.type === 'sparql' ? (e.mode ?? 'describe') : 'direct'}`)
+        .join(', ');
       server.log.info(
-        `  ${mapping.dsName}: ${mapping.externalPrefix} -> ${mapping.internalPrefix} (${mapping.endpoint})`
+        `  ${source.dsName}: ${externalPrefix} -> ${source.originalPrefix} [${endpoints}]`
       );
     }
   } else {
-    server.log.warn('No URI mappings configured');
+    server.log.warn('No sources configured');
   }
 
-  // CORS
   if (config.cors) {
     server.register(fastifyCors, {
       origin: config.cors.origin ?? '*',
@@ -79,27 +47,35 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
     });
   }
 
-  // Health check
+  const sourceManager = new SourceManagerClass(
+    sources,
+    {},
+    {
+      info: (msg: string) => server.log.info(msg),
+      error: (msg: string) => server.log.error(msg),
+    }
+  );
+
+  const translator = sources.length > 0 ? new UriTranslator(sources, baseUrl) : null;
+
   server.get('/health', async (_req: any, _reply: any) => {
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),
-      mappings: enrichedMappings.map((m) => ({
-        dsName: m.dsName,
-        endpoint: m.endpoint,
-        internalPrefix: m.internalPrefix,
-        externalPrefix: m.externalPrefix,
+      sources: sources.map((s) => ({
+        dsName: s.dsName,
+        originalPrefix: s.originalPrefix,
+        externalPrefix: `${baseUrl}/ld/${s.dsName}/`,
+        endpoints: s.endpoints,
       })),
     };
   });
 
-  // Resource endpoint
   server.get('/ld/:dsName/*', async (req: any, reply: any) => {
     try {
       const dsName = req.params.dsName;
       const pathSuffix = req.params['*'];
 
-      // Reconstruct full external IRI from request
       const protocol = req.headers['x-forwarded-proto'] ?? 'http';
       const host = req.headers.host ?? 'localhost:3000';
       const externalIri = `${protocol}://${host}/ld/${dsName}/${pathSuffix}`;
@@ -113,58 +89,38 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
       const translateResponseQuery = req.query.translateResponse as string | undefined;
       const negotiated = negotiateFormat(acceptHeader, formatQuery);
 
-      // Determine if response translation is enabled (config default: true)
       const translateResponse =
         translateResponseQuery !== undefined
           ? translateResponseQuery !== 'false'
           : (config.translateResponse ?? true);
 
-      // Create URI translator if mappings are configured
-      const translator =
-        enrichedMappings && enrichedMappings.length > 0
-          ? new UriTranslator(enrichedMappings)
-          : null;
+      const source = sourceManager.getSource(dsName);
+      if (!source) {
+        reply.code(404).send({ error: `Unknown dataset: ${dsName}` });
+        return;
+      }
 
-      // Translate request IRI if translator is available
       const internalIri = translator ? translator.translateRequestUri(externalIri) : externalIri;
-
-      // Find matching mapping for logging/endpoint selection
-      const mapping = translator?.findMappingForIri(externalIri);
-      const sparqlConfig = config.sparql;
-      const clientEndpoint = mapping?.endpoint ?? sparqlConfig?.endpoint;
 
       server.log.info(`[${dsName}] Request for ${externalIri} -> ${internalIri}`);
 
-      if (!clientEndpoint) {
-        throw new Error('No SPARQL endpoint configured');
-      }
-
-      server.log.info(`Using SPARQL endpoint: ${clientEndpoint}`);
-
-      const client = new SparqlClientClass(clientEndpoint, {
-        timeout: sparqlConfig?.timeout,
-        headers: sparqlConfig?.headers,
-      });
-
       try {
-        const rdfStream = await client.describe(internalIri, negotiated.format);
+        const { triples, prefixes, base } = await sourceManager.fetchResource(
+          dsName,
+          internalIri,
+          negotiated.format
+        );
 
-        // If translation is disabled and no translator, just stream response
         if (!translateResponse || !translator) {
-          return reply.header('Content-Type', negotiated.format).send(rdfStream);
+          const serializer = new RdfSerializer();
+          const result = serializer.serialize(triples, negotiated.format, { prefixes, base });
+          return reply.header('Content-Type', negotiated.format).send(result);
         }
 
-        // Otherwise, we need to parse, translate, and serialize
-        const rdfString = await streamToString(rdfStream);
-        const parser = new RdfParser();
-        const parsed = parser.parseWithMetadata(rdfString, negotiated.format);
+        const translatedDataset = translator.translateDataset(triples);
+        const translatedPrefixes = translator.translatePrefixes(prefixes);
+        const translatedBase = base ? translator.translateBase(base) : undefined;
 
-        // Translate dataset, prefixes, and base
-        const translatedDataset = translator.translateDataset(parsed.triples);
-        const translatedPrefixes = translator.translatePrefixes(parsed.prefixes);
-        const translatedBase = parsed.base ? translator.translateBase(parsed.base) : undefined;
-
-        // Serialize the translated result
         const serializer = new RdfSerializer();
         const result = serializer.serialize(translatedDataset, negotiated.format, {
           prefixes: translatedPrefixes,
@@ -174,10 +130,10 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
         reply.header('Content-Type', negotiated.format).send(result);
       } catch (err) {
         server.log.error({ err }, 'Request failed: ' + (err as Error).message);
-        handleError(err, reply, clientEndpoint, server);
+        handleError(err, reply, server);
       }
     } catch (err) {
-      handleError(err, reply, '', server);
+      handleError(err, reply, server);
     }
   });
 
@@ -193,7 +149,6 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
     reply.code(500).send({ error: 'Internal server error' });
   });
 
-  // Helpers
   function negotiateFormat(acceptHeader?: string, formatQuery?: string): NegotiatedFormat {
     if (formatQuery) {
       return { format: queryParamToFormat(formatQuery) };
@@ -228,13 +183,13 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
     }
   }
 
-  function handleError(err: any, reply: any, endpoint: string, server: any) {
+  function handleError(err: any, reply: any, server: any) {
     if (err instanceof InvalidIriError) {
       reply.code(400).send({ error: err.message, details: { iri: (err as any).iri } });
     } else if (err instanceof UnsupportedFormatError) {
       reply.code(406).send({ error: err.message, format: (err as any).format });
-    } else if (err instanceof EndpointError) {
-      reply.code(502).send({ error: err.message, endpoint });
+    } else if (err.name === 'AggregateError' || err.name === 'EndpointError') {
+      reply.code(502).send({ error: err.message });
     } else {
       server.log.error(err, 'Error handling request');
       reply.code(500).send({ error: 'Internal server error' });
