@@ -138,7 +138,7 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
         if (!translateResponse || !translator) {
           const serializer = new RdfSerializer();
           const result = serializer.serialize(triples, negotiated.format, { prefixes, base });
-          return reply.header('Content-Type', negotiated.format).send(result);
+          return reply.header('Content-Type', `${negotiated.format}; charset=utf-8`).send(result);
         }
 
         const translatedDataset = translator.translateDataset(triples);
@@ -151,7 +151,7 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
           base: translatedBase,
         });
 
-        reply.header('Content-Type', negotiated.format).send(result);
+        reply.header('Content-Type', `${negotiated.format}; charset=utf-8`).send(result);
       } catch (err) {
         server.log.error({ err }, 'Request failed: ' + (err as Error).message);
         handleError(err, reply, server);

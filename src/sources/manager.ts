@@ -173,8 +173,14 @@ export class SourceManager {
   private streamToString(stream: Readable): Promise<string> {
     return new Promise((resolve, reject) => {
       let data = '';
-      stream.on('data', (chunk: Buffer | string) => {
-        data += chunk;
+      stream.on('data', (chunk: Buffer | string | Uint8Array) => {
+        if (Buffer.isBuffer(chunk)) {
+          data += chunk.toString('utf8');
+        } else if (chunk instanceof Uint8Array) {
+          data += Buffer.from(chunk).toString('utf8');
+        } else {
+          data += chunk;
+        }
       });
       stream.on('end', () => resolve(data));
       stream.on('error', reject);
