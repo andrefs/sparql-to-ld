@@ -37,6 +37,7 @@ export interface ServerConfig {
   logging?: LoggingConfig;
   sources?: SourceConfig[];
   translateResponse?: boolean;
+  verbose?: boolean;
 }
 
 export interface SourceConfig {
@@ -102,6 +103,7 @@ export const serverConfigSchema = z.object({
     )
     .optional(),
   translateResponse: z.boolean().optional(),
+  verbose: z.boolean().optional(),
 });
 
 export function isServerConfig(value: unknown): value is ServerConfig {

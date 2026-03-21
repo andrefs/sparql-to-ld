@@ -17,6 +17,7 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Serve
       port: 3000,
     },
     translateResponse: true,
+    verbose: false,
     logging: {
       level: 'info',
       prettyPrint: false,
@@ -93,5 +94,8 @@ function overrideFromEnv(config: any, env: Record<string, string>): void {
   if (env.SPARQL_TO_LD_LOGGING_PRETTY_PRINT) {
     config.logging = config.logging || {};
     config.logging.prettyPrint = env.SPARQL_TO_LD_LOGGING_PRETTY_PRINT === 'true';
+  }
+  if (env.SPARQL_TO_LD_VERBOSE) {
+    config.verbose = env.SPARQL_TO_LD_VERBOSE === 'true';
   }
 }

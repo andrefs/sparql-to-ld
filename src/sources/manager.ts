@@ -10,11 +10,13 @@ import type {
 import { SparqlClient } from '../sparql/client.js';
 import { HttpClient } from '../http/client.js';
 import { RdfParser } from '../rdf/parser-serializer.js';
+import { buildConstructQuery } from '../sparql/query-builder.js';
 
 export interface SourceManagerOptions {
   SparqlClientClass?: typeof SparqlClient;
   HttpClientClass?: typeof HttpClient;
   fetch?: typeof fetch;
+  verbose?: boolean;
 }
 
 export class SourceManager {
@@ -23,6 +25,7 @@ export class SourceManager {
   private SparqlClientClass: typeof SparqlClient;
   private HttpClientClass: typeof HttpClient;
   private fetchFn: typeof fetch;
+  private verbose: boolean;
   private logger?: { info: (msg: string) => void; error: (msg: string) => void };
 
   constructor(
@@ -35,6 +38,7 @@ export class SourceManager {
     this.SparqlClientClass = options.SparqlClientClass ?? SparqlClient;
     this.HttpClientClass = options.HttpClientClass ?? HttpClient;
     this.fetchFn = options.fetch ?? fetch;
+    this.verbose = options.verbose ?? false;
     this.logger = logger;
   }
 
@@ -133,6 +137,12 @@ export class SourceManager {
     });
 
     const mode = endpoint.mode ?? 'describe';
+    const query = buildConstructQuery(resourceIri, mode);
+
+    if (this.verbose) {
+      this.logger?.info(`[SPARQL] ${query}`);
+    }
+
     const rdfStream = await client.construct(resourceIri, mode, format);
     const rdfString = await this.streamToString(rdfStream);
 
@@ -149,6 +159,11 @@ export class SourceManager {
       headers: endpoint.headers,
     });
 
+    if (this.verbose) {
+      this.logger?.info(
+        `[HTTP] GET ${endpoint.url}?uri=${encodeURIComponent(resourceIri)} (format: ${format})`
+      );
+    }
     const rdfStream = await client.fetchRdf(resourceIri, format);
     const rdfString = await this.streamToString(rdfStream);
 

@@ -8,6 +8,7 @@ interface CliOptions {
   config?: string;
   port?: number;
   host?: string;
+  verbose?: boolean;
   help?: boolean;
 }
 
@@ -30,6 +31,11 @@ async function main() {
         short: 'h',
         description: 'Server host (overrides config)',
       },
+      verbose: {
+        type: 'boolean',
+        short: 'v',
+        description: 'Enable verbose logging (including SPARQL queries)',
+      },
       help: {
         type: 'boolean',
         short: '?',
@@ -46,11 +52,12 @@ sparql-to-ld - Serve RDF resources with URI translation
 
 Usage: sparql-to-ld [options]
 
-Options:
-  -c, --config <path>    Path to configuration file (default: ./sparql-to-ld.json)
-  -p, --port <number>    Server port (default: 3000)
-  -h, --host <string>    Server host (default: 0.0.0.0)
-  -?, --help             Show this help message
+ Options:
+   -c, --config <path>    Path to configuration file (default: ./sparql-to-ld.json)
+   -p, --port <number>    Server port (default: 3000)
+   -h, --host <string>    Server host (default: 0.0.0.0)
+   -v, --verbose          Enable verbose logging (including SPARQL queries)
+   -?, --help             Show this help message
 
 Example config file (sparql-to-ld.json):
 {
@@ -91,6 +98,9 @@ Example config file (sparql-to-ld.json):
       config.server = config.server ?? {};
       config.server.host = options.host;
     }
+    if (options.verbose) {
+      config.verbose = true;
+    }
 
     const server = await createServer(config);
 
@@ -124,6 +134,7 @@ Example config file (sparql-to-ld.json):
     console.log(
       `Response translation: ${(config.translateResponse ?? true) ? 'enabled' : 'disabled'}`
     );
+    console.log(`Verbose logging: ${config.verbose ? 'enabled' : 'disabled'}`);
 
     const shutdown = async (signal: string) => {
       console.log(`\nReceived ${signal}, shutting down...`);

@@ -86,6 +86,7 @@ Alternatively, use environment variables:
 
 ```bash
 TRANSLATE_RESPONSE=true
+VERBOSE=true
 PORT=3000
 ```
 
@@ -97,6 +98,7 @@ PORT=3000
 | `server.port`                   | number  | Server port (default: `3000`)                                                              |
 | `cors.origin`                   | string  | CORS origin (default: `*`)                                                                 |
 | `translateResponse`             | boolean | Enable response URI translation (default: `true`)                                          |
+| `verbose`                       | boolean | Enable verbose logging of SPARQL queries (default: `false`)                                |
 | `sources`                       | array   | Array of dataset source configurations                                                     |
 | `sources[].dsName`              | string  | Dataset name for routing                                                                   |
 | `sources[].originalPrefix`      | string  | Prefix used internally by the SPARQL endpoint                                              |

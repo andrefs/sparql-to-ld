@@ -49,7 +49,9 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
 
   const sourceManager = new SourceManagerClass(
     sources,
-    {},
+    {
+      verbose: config.verbose ?? false,
+    },
     {
       info: (msg: string) => server.log.info(msg),
       error: (msg: string) => server.log.error(msg),
