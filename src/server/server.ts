@@ -13,7 +13,29 @@ export interface ServerDeps {
 
 export function createServer(config: ServerConfig, deps: ServerDeps = {}): FastifyInstance {
   const SourceManagerClass = deps.SourceManager ?? SourceManager;
-  const server = fastify();
+
+  // Build logger configuration
+  const loggingConfig = config.logging ?? {};
+  const loggerOptions: any = {
+    level: loggingConfig.level ?? 'info',
+  };
+
+  // Use pino-pretty transport if prettyPrint is enabled
+  if (loggingConfig.prettyPrint) {
+    loggerOptions.transport = {
+      target: 'pino-pretty',
+      options: {
+        destination: 1, // stdout
+        colorize: true,
+        translateTime: 'SYS:yyyy-mm-dd HH:MM:ss.l',
+        ignore: 'pid,hostname',
+      },
+    };
+  }
+
+  const server = fastify({
+    logger: loggerOptions,
+  });
 
   const serverHost = config.server?.host ?? '0.0.0.0';
   const serverPort = config.server?.port ?? 3000;

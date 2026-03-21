@@ -192,11 +192,15 @@ WHERE {
   ?s ?p ${escaped} .
 }
 WHERE {
-  ${escaped} ?p ?o .
-  BIND(${escaped} AS ?s)
+  {
+    ${escaped} ?p ?o .
+    BIND(${escaped} AS ?s)
+  }
   UNION
-  ?s ?p ${escaped} .
-  BIND(${escaped} AS ?o)
+  {
+    ?s ?p ${escaped} .
+    BIND(${escaped} AS ?o)
+  }
 }`;
 
     case 'sym-two':
