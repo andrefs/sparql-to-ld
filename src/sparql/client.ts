@@ -1,9 +1,9 @@
 import { Readable } from 'stream';
 // @ts-expect-error - sparql-http-client lacks types
 import StreamClient from 'sparql-http-client';
-import type { RdfFormat } from '../types/Resource.js';
+import type { RdfFormat, EndpointMode } from '../types/Resource.js';
 import { EndpointError } from '../types/Errors.js';
-import { describeResource } from './query-builder.js';
+import { describeResource, buildConstructQuery } from './query-builder.js';
 
 /**
  * Wrapper around sparql-http-client providing a simplified interface
@@ -55,10 +55,48 @@ export class SparqlClient {
         throw new Error(`SPARQL request failed: ${response.status} ${response.statusText}`);
       }
 
-      return response.body;
+      if (!response.body) {
+        throw new Error('No response body received');
+      }
+
+      return Readable.fromWeb(response.body as any);
     } catch (err) {
       throw new EndpointError(
-        `Failed to describe resource from SPARQL endpoint: ${err instanceof Error ? err.message : String(err)}`,
+        `Failed to fetch resource from SPARQL endpoint: ${err instanceof Error ? err.message : String(err)}`,
+        undefined,
+        this.endpoint,
+        err
+      );
+    }
+  }
+
+  /**
+   * Execute a CONSTRUCT query based on the specified mode.
+   * Returns a readable stream of RDF data in the requested format.
+   *
+   * @param resourceIri - The IRI of the resource to query
+   * @param mode - The CONSTRUCT query mode (fwd-one, fwd-two, back-one, back-two, sym-one, sym-two, describe)
+   * @param format - Desired RDF format (MIME type)
+   * @returns Readable stream of RDF data
+   */
+  async construct(resourceIri: string, mode: EndpointMode, format: RdfFormat): Promise<Readable> {
+    try {
+      const query = buildConstructQuery(resourceIri, mode);
+      const headers = new Headers({ Accept: format });
+      const response = await this.client.get(query, { headers });
+
+      if (!response.ok) {
+        throw new Error(`SPARQL request failed: ${response.status} ${response.statusText}`);
+      }
+
+      if (!response.body) {
+        throw new Error('No response body received');
+      }
+
+      return Readable.fromWeb(response.body as any);
+    } catch (err) {
+      throw new EndpointError(
+        `Failed to fetch resource from SPARQL endpoint: ${err instanceof Error ? err.message : String(err)}`,
         undefined,
         this.endpoint,
         err

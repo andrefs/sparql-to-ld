@@ -1,9 +1,11 @@
 /**
  * SPARQL Query Builder
  *
- * Constructs SPARQL DESCRIBE queries with support for
- * FedBox/CBD (Concise Bounded Description) patterns.
+ * Constructs SPARQL DESCRIBE and CONSTRUCT queries with support for
+ * (S)CBD (Concise Bounded Description) patterns.
  */
+
+import type { EndpointMode } from '../types/Resource.js';
 
 /**
  * Options for building a DESCRIBE query
@@ -121,4 +123,115 @@ export function describeResource(resourceIri: string): string {
  */
 export function buildCbdQuery(resourceIri: string, limit?: number): string {
   return buildDescribeQuery(resourceIri, { includeInverse: true, limit });
+}
+
+/**
+ * Build a CONSTRUCT query based on endpoint mode.
+ *
+ * Modes:
+ * - describe: Simple DESCRIBE query
+ * - fwd-one: CONSTRUCT with ?uri ?p ?o
+ * - fwd-two: CONSTRUCT with ?uri ?p ?o + 1-hop blank node expansion
+ * - back-one: CONSTRUCT with ?s ?p ?uri
+ * - back-two: CONSTRUCT with ?s ?p ?uri + 1-hop blank node expansion
+ * - sym-one: UNION of fwd-one and back-one
+ * - sym-two: Full symmetric 2-hop pattern
+ */
+export function buildConstructQuery(resourceIri: string, mode: EndpointMode): string {
+  const escaped = escapeIri(resourceIri);
+
+  switch (mode) {
+    case 'describe':
+      return `DESCRIBE ${escaped}`;
+
+    case 'fwd-one':
+      return `CONSTRUCT {
+  ${escaped} ?p ?o .
+}
+WHERE {
+  ${escaped} ?p ?o .
+}`;
+
+    case 'fwd-two':
+      return `CONSTRUCT {
+  ${escaped} ?p ?o .
+  ?o ?p2 ?o2 .
+}
+WHERE {
+  ${escaped} ?p ?o .
+  OPTIONAL {
+    FILTER(isBlank(?o))
+    ?o ?p2 ?o2 .
+  }
+}`;
+
+    case 'back-one':
+      return `CONSTRUCT {
+  ?s ?p ${escaped} .
+}
+WHERE {
+  ?s ?p ${escaped} .
+}`;
+
+    case 'back-two':
+      return `CONSTRUCT {
+  ?s ?p ${escaped} .
+  ?s2 ?p2 ?s .
+}
+WHERE {
+  ?s ?p ${escaped} .
+  OPTIONAL {
+    FILTER(isBlank(?s))
+    ?s2 ?p2 ?s .
+  }
+}`;
+
+    case 'sym-one':
+      return `CONSTRUCT {
+  ${escaped} ?p ?o .
+  ?s ?p ${escaped} .
+}
+WHERE {
+  {
+    ${escaped} ?p ?o .
+    BIND(${escaped} AS ?s)
+  }
+  UNION
+  {
+    ?s ?p ${escaped} .
+    BIND(${escaped} AS ?o)
+  }
+}`;
+
+    case 'sym-two':
+      return `CONSTRUCT {
+  ?s ?p ?o .
+}
+WHERE {
+  {
+    ${escaped} ?p ?o .
+    BIND(${escaped} AS ?s)
+  }
+  UNION
+  {
+    ?s ?p ${escaped} .
+    BIND(${escaped} AS ?o)
+  }
+  UNION
+  {
+    ${escaped} ?p1 ?x .
+    ?x ?p ?o .
+    BIND(?x AS ?s)
+  }
+  UNION
+  {
+    ?x ?p1 ${escaped} .
+    ?s ?p ?x .
+    BIND(?x AS ?o)
+  }
+}`;
+
+    default:
+      throw new Error(`Unknown endpoint mode: ${mode}`);
+  }
 }

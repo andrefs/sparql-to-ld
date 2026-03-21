@@ -8,7 +8,7 @@ interface CliOptions {
   config?: string;
   port?: number;
   host?: string;
-  endpoint?: string;
+  verbose?: boolean;
   help?: boolean;
 }
 
@@ -31,10 +31,10 @@ async function main() {
         short: 'h',
         description: 'Server host (overrides config)',
       },
-      endpoint: {
-        type: 'string',
-        short: 'e',
-        description: 'SPARQL endpoint URL (overrides config)',
+      verbose: {
+        type: 'boolean',
+        short: 'v',
+        description: 'Enable verbose logging (including SPARQL queries)',
       },
       help: {
         type: 'boolean',
@@ -52,27 +52,34 @@ sparql-to-ld - Serve RDF resources with URI translation
 
 Usage: sparql-to-ld [options]
 
-Options:
-  -c, --config <path>    Path to configuration file (default: ./sparql-to-ld.json)
-  -p, --port <number>    Server port (default: 3000)
-  -h, --host <string>    Server host (default: 0.0.0.0)
-  -e, --endpoint <url>   SPARQL endpoint URL
-  -?, --help             Show this help message
-
-Configuration can also be provided via environment variables:
-  SPARQL_TO_LD_PORT, SPARQL_TO_LD_HOST, SPARQL_TO_LD_SPARQL_ENDPOINT
+ Options:
+   -c, --config <path>    Path to configuration file (default: ./sparql-to-ld.json)
+   -p, --port <number>    Server port (default: 3000)
+   -h, --host <string>    Server host (default: 0.0.0.0)
+   -v, --verbose          Enable verbose logging (including SPARQL queries)
+   -?, --help             Show this help message
 
 Example config file (sparql-to-ld.json):
 {
-  "sparql": {
-    "endpoint": "http://localhost:3030/dataset",
-    "timeout": 30000
+  "server": {
+    "host": "0.0.0.0",
+    "port": 3000
   },
   "cors": {
     "origin": "*"
   },
-  "uriMappings": [
-    { "internalPrefix": "http://internal.org/", "externalPrefix": "http://external.org/" }
+  "sources": [
+    {
+      "dsName": "dbpedia",
+      "originalPrefix": "http://dbpedia.org/resource/",
+      "endpoints": [
+        {
+          "type": "sparql",
+          "mode": "describe",
+          "url": "http://localhost:3030/dbpedia/sparql"
+        }
+      ]
+    }
   ],
   "translateResponse": true
 }
@@ -84,43 +91,50 @@ Example config file (sparql-to-ld.json):
     const config = await loadConfig({ configPath: options.config });
 
     if (options.port) {
-      config.port = parseInt(String(options.port), 10);
+      config.server = config.server ?? {};
+      config.server.port = parseInt(String(options.port), 10);
     }
     if (options.host) {
-      config.host = options.host;
+      config.server = config.server ?? {};
+      config.server.host = options.host;
     }
-    if (options.endpoint) {
-      config.sparql = config.sparql ?? { endpoint: options.endpoint };
-      config.sparql.endpoint = options.endpoint;
+    if (options.verbose) {
+      config.verbose = true;
     }
 
     const server = await createServer(config);
 
+    const serverHost = config.server?.host ?? '0.0.0.0';
+    const serverPort = config.server?.port ?? 3000;
+
     const address = await server.listen({
-      port: config.port ?? 3000,
-      host: config.host ?? '0.0.0.0',
+      port: serverPort,
+      host: serverHost,
     });
 
     console.log(`Server listening at ${address}`);
 
-    const serverHost = config.host ?? '0.0.0.0';
-    const serverPort = config.port ?? 3000;
+    const baseUrl = `http://${serverHost === '0.0.0.0' ? 'localhost' : serverHost}:${serverPort}`;
 
-    if (config.uriMappings && config.uriMappings.length > 0) {
-      console.log(`URI mappings:`);
-      for (const m of config.uriMappings) {
-        const externalPrefix =
-          m.externalPrefix ??
-          `http://${serverHost === '0.0.0.0' ? 'localhost' : serverHost}:${serverPort}/ld/${m.dsName}/`;
-        console.log(`  ${m.dsName}: ${externalPrefix} -> ${m.internalPrefix} (${m.endpoint})`);
+    if (config.sources && config.sources.length > 0) {
+      console.log(`Sources:`);
+      for (const source of config.sources) {
+        const externalPrefix = `${baseUrl}/ld/${source.dsName}/`;
+        const endpoints = source.endpoints
+          .map((e) => `${e.type}:${e.type === 'sparql' ? (e.mode ?? 'describe') : 'direct'}`)
+          .join(', ');
+        console.log(
+          `  ${source.dsName}: ${externalPrefix} -> ${source.originalPrefix} [${endpoints}]`
+        );
       }
     } else {
-      console.log(`No URI mappings configured`);
+      console.log(`No sources configured`);
     }
 
     console.log(
       `Response translation: ${(config.translateResponse ?? true) ? 'enabled' : 'disabled'}`
     );
+    console.log(`Verbose logging: ${config.verbose ? 'enabled' : 'disabled'}`);
 
     const shutdown = async (signal: string) => {
       console.log(`\nReceived ${signal}, shutting down...`);

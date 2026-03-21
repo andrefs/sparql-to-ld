@@ -40,3 +40,5 @@ coverage/
 .cache/
 tmp/
 temp/
+
+.opencode

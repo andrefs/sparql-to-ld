@@ -1,13 +1,14 @@
-import { UriMapping } from '../types/Resource.js';
-import { Dataset, Iri, BlankNode, Literal } from '../types/Resource.js';
+import { Source, Dataset, Iri, BlankNode, Literal } from '../types/Resource.js';
 
 export class UriTranslator {
-  private mappings: UriMapping[];
-  private mappingExternalPrefixes: string[];
+  private sources: Source[];
+  private sourceExternalPrefixes: Map<string, string>;
 
-  constructor(mappings: UriMapping[]) {
-    this.mappings = mappings;
-    this.mappingExternalPrefixes = mappings.map((m) => m.externalPrefix ?? '');
+  constructor(sources: Source[], baseUrl?: string) {
+    this.sources = sources;
+    this.sourceExternalPrefixes = new Map(
+      sources.map((s) => [s.dsName, `${baseUrl ?? 'http://localhost:3000'}/ld/${s.dsName}/`])
+    );
   }
 
   private normalizeHost(uri: string): string {
@@ -22,24 +23,24 @@ export class UriTranslator {
     }
   }
 
-  /**
-   * Find the mapping that matches a given external IRI.
-   * Returns the mapping with the longest matching external prefix.
-   */
-  findMappingForIri(uri: string): UriMapping | undefined {
+  getSource(dsName: string): Source | undefined {
+    return this.sources.find((s) => s.dsName === dsName);
+  }
+
+  findSourceForIri(uri: string): Source | undefined {
     const normalizedUri = this.normalizeHost(uri);
-    let bestMatch: UriMapping | undefined;
+    let bestMatch: Source | undefined;
     let maxLength = -1;
 
-    for (let i = 0; i < this.mappings.length; i++) {
-      const externalPrefix = this.mappingExternalPrefixes[i];
+    for (const source of this.sources) {
+      const externalPrefix = this.sourceExternalPrefixes.get(source.dsName);
       if (!externalPrefix) continue;
       const normalizedPrefix = this.normalizeHost(externalPrefix);
       if (normalizedUri.startsWith(normalizedPrefix)) {
         const prefixLength = normalizedPrefix.length;
         if (prefixLength > maxLength) {
           maxLength = prefixLength;
-          bestMatch = this.mappings[i];
+          bestMatch = source;
         }
       }
     }
@@ -47,43 +48,34 @@ export class UriTranslator {
     return bestMatch;
   }
 
-  /**
-   * Translate a request URI from external to internal format.
-   * Finds the mapping where the external prefix matches and replaces with internal prefix.
-   */
   translateRequestUri(uri: string): string {
     const normalizedUri = this.normalizeHost(uri);
 
-    let bestMatch: UriMapping | null = null;
+    let bestMatch: Source | null = null;
     let maxLength = -1;
     let matchedPrefixLength = 0;
 
-    for (let i = 0; i < this.mappings.length; i++) {
-      const externalPrefix = this.mappingExternalPrefixes[i];
+    for (const source of this.sources) {
+      const externalPrefix = this.sourceExternalPrefixes.get(source.dsName);
       if (!externalPrefix) continue;
       const normalizedPrefix = this.normalizeHost(externalPrefix);
       if (normalizedUri.startsWith(normalizedPrefix)) {
         const prefixLength = normalizedPrefix.length;
         if (prefixLength > maxLength) {
           maxLength = prefixLength;
-          bestMatch = this.mappings[i];
+          bestMatch = source;
           matchedPrefixLength = externalPrefix.length;
         }
       }
     }
 
     if (bestMatch) {
-      return bestMatch.internalPrefix + uri.slice(matchedPrefixLength);
+      return bestMatch.originalPrefix + uri.slice(matchedPrefixLength);
     }
 
     return uri;
   }
 
-  /**
-   * Translate a dataset from internal to external format.
-   * Rewrites all IRIs in triples (subject, predicate, object) according to mappings.
-   * Blank nodes and literals are left unchanged.
-   */
   translateDataset(dataset: Dataset, options?: { translateResponse?: boolean }): Dataset {
     if (options?.translateResponse === false) {
       return dataset;
@@ -112,21 +104,26 @@ export class UriTranslator {
   }
 
   private translateIri(iri: Iri): Iri {
-    let bestMatch: UriMapping | null = null;
+    let bestMatch: Source | null = null;
     let maxLength = -1;
+    let matchedDsName: string | null = null;
 
-    for (const mapping of this.mappings) {
-      if (mapping.internalPrefix && iri.startsWith(mapping.internalPrefix)) {
-        const prefixLength = mapping.internalPrefix.length;
+    for (const source of this.sources) {
+      if (source.originalPrefix && iri.startsWith(source.originalPrefix)) {
+        const prefixLength = source.originalPrefix.length;
         if (prefixLength > maxLength) {
           maxLength = prefixLength;
-          bestMatch = mapping;
+          bestMatch = source;
+          matchedDsName = source.dsName;
         }
       }
     }
 
-    if (bestMatch && bestMatch.externalPrefix) {
-      return bestMatch.externalPrefix + iri.slice(bestMatch.internalPrefix.length);
+    if (bestMatch && matchedDsName) {
+      const externalPrefix = this.sourceExternalPrefixes.get(matchedDsName);
+      if (externalPrefix) {
+        return externalPrefix + iri.slice(bestMatch.originalPrefix.length);
+      }
     }
 
     return iri;
@@ -137,11 +134,7 @@ export class UriTranslator {
 
     for (const [prefix, iri] of Object.entries(prefixes)) {
       const translated = this.translateIri(iri);
-      if (translated !== iri) {
-        result[prefix] = translated;
-      } else {
-        result[prefix] = iri;
-      }
+      result[prefix] = translated;
     }
 
     return result;
