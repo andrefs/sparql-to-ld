@@ -18,6 +18,7 @@ build/
 
 # Local config (use sparql-to-ld.json.example as template)
 sparql-to-ld.json
+sparql-to-ld.json.bak
 
 # IDE
 .vscode/
