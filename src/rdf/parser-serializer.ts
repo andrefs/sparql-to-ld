@@ -38,12 +38,14 @@ function nodeToIriOrLiteral(node: any): Iri | BlankNode | Literal {
   throw new RdfParseError(`Cannot convert node type ${node.termType} to literal/iri`);
 }
 
+function isBlankNodeId(id: string): boolean {
+  return id.startsWith('_:') || /^b\d+_/.test(id);
+}
+
 function tripleToN3Quad(triple: Triple): Quad {
   const { subject, predicate, object } = triple;
   const s =
-    typeof subject === 'string' && subject.startsWith('_:')
-      ? blankNode(subject)
-      : namedNode(subject);
+    typeof subject === 'string' && isBlankNodeId(subject) ? blankNode(subject) : namedNode(subject);
   const p = namedNode(predicate);
   const o = nodeToN3Object(object);
   return quad(s, p, o);
@@ -51,7 +53,7 @@ function tripleToN3Quad(triple: Triple): Quad {
 
 function nodeToN3Object(obj: Iri | BlankNode | Literal): any {
   if (typeof obj === 'string') {
-    return obj.startsWith('_:') ? blankNode(obj) : namedNode(obj);
+    return isBlankNodeId(obj) ? blankNode(obj) : namedNode(obj);
   }
   if (obj.language) return literal(obj.value, obj.language);
   if (obj.datatype) return literal(obj.value, namedNode(obj.datatype));
@@ -181,7 +183,7 @@ export class RdfSerializer {
     };
 
     const formatSubjectOrPredicate = (term: Iri | BlankNode): string => {
-      if (typeof term === 'string' && term.startsWith('_:')) {
+      if (typeof term === 'string' && isBlankNodeId(term)) {
         return escapeHtml(term);
       }
       const href = getLink(term);
@@ -191,7 +193,7 @@ export class RdfSerializer {
 
     const formatObject = (term: Iri | BlankNode | Literal): string => {
       if (typeof term === 'string') {
-        if (term.startsWith('_:')) {
+        if (isBlankNodeId(term)) {
           return escapeHtml(term);
         }
         const href = getLink(term);
@@ -212,12 +214,14 @@ export class RdfSerializer {
     th { background-color: #f2f2f2; text-align: left; }
     a { color: #0066cc; }
     .literal { color: #666; font-style: italic; }
+    .row-num { user-select: none; color: #999; text-align: right; width: 1px; white-space: nowrap; }
   </style>
 </head>
 <body>
   <table>
     <thead>
       <tr>
+        <th style="width:1px; white-space:nowrap;">#</th>
         <th>Subject</th>
         <th>Predicate</th>
         <th>Object</th>
@@ -228,12 +232,14 @@ export class RdfSerializer {
 
     if (dataset.length === 0) {
       html += `      <tr>
-        <td colspan="3">No results found</td>
+        <td colspan="4">No results found</td>
       </tr>
 `;
     } else {
+      let rowNum = 1;
       for (const triple of dataset) {
         html += `      <tr>
+        <td class="row-num">${rowNum++}</td>
         <td>${formatSubjectOrPredicate(triple.subject)}</td>
         <td>${formatSubjectOrPredicate(triple.predicate)}</td>
         <td>${formatObject(triple.object)}</td>

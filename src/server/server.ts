@@ -7,6 +7,10 @@ import { UriTranslator } from '../rdf/uri-translator.js';
 import { RdfFormat, NegotiatedFormat, Source } from '../types/Resource.js';
 import { InvalidIriError, UnsupportedFormatError } from '../types/Errors.js';
 
+function isBlankNode(id: string): boolean {
+  return id.startsWith('_:') || /^b\d+_/.test(id);
+}
+
 export interface ServerDeps {
   SourceManager?: typeof SourceManager;
 }
@@ -73,6 +77,7 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
     sources,
     {
       verbose: config.verbose ?? false,
+      blankDedup: config.blankDedup ?? true,
     },
     {
       info: (msg: string) => server.log.info(msg),
@@ -143,13 +148,13 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
 
           if (translator) {
             for (const triple of triples) {
-              if (typeof triple.subject === 'string' && !triple.subject.startsWith('_:')) {
+              if (typeof triple.subject === 'string' && !isBlankNode(triple.subject)) {
                 translatedUris.set(triple.subject, translator.translateUri(triple.subject));
               }
-              if (typeof triple.predicate === 'string' && !triple.predicate.startsWith('_:')) {
+              if (typeof triple.predicate === 'string' && !isBlankNode(triple.predicate)) {
                 translatedUris.set(triple.predicate, translator.translateUri(triple.predicate));
               }
-              if (typeof triple.object === 'string' && !triple.object.startsWith('_:')) {
+              if (typeof triple.object === 'string' && !isBlankNode(triple.object)) {
                 translatedUris.set(triple.object, translator.translateUri(triple.object));
               }
             }

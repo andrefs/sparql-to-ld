@@ -11,12 +11,14 @@ import { SparqlClient } from '../sparql/client.js';
 import { HttpClient } from '../http/client.js';
 import { RdfParser } from '../rdf/parser-serializer.js';
 import { buildConstructQuery } from '../sparql/query-builder.js';
+import { deduplicateBlankNodes } from '../rdf/blank-node-deduplicator.js';
 
 export interface SourceManagerOptions {
   SparqlClientClass?: typeof SparqlClient;
   HttpClientClass?: typeof HttpClient;
   fetch?: typeof fetch;
   verbose?: boolean;
+  blankDedup?: boolean;
 }
 
 export class SourceManager {
@@ -26,6 +28,7 @@ export class SourceManager {
   private HttpClientClass: typeof HttpClient;
   private fetchFn: typeof fetch;
   private verbose: boolean;
+  private blankDedup: boolean;
   private logger?: { info: (msg: string) => void; error: (msg: string) => void };
 
   constructor(
@@ -39,6 +42,7 @@ export class SourceManager {
     this.HttpClientClass = options.HttpClientClass ?? HttpClient;
     this.fetchFn = options.fetch ?? fetch;
     this.verbose = options.verbose ?? false;
+    this.blankDedup = options.blankDedup ?? true;
     this.logger = logger;
   }
 
@@ -146,7 +150,13 @@ export class SourceManager {
     const rdfStream = await client.construct(resourceIri, mode, format);
     const rdfString = await this.streamToString(rdfStream);
 
-    return new RdfParser().parseWithMetadata(rdfString, format);
+    const result = new RdfParser().parseWithMetadata(rdfString, format);
+
+    if (this.blankDedup) {
+      result.triples = deduplicateBlankNodes(result.triples);
+    }
+
+    return result;
   }
 
   private async executeHttpEndpoint(
@@ -167,7 +177,13 @@ export class SourceManager {
     const rdfStream = await client.fetchRdf(resourceIri, format);
     const rdfString = await this.streamToString(rdfStream);
 
-    return new RdfParser().parseWithMetadata(rdfString, format);
+    const result = new RdfParser().parseWithMetadata(rdfString, format);
+
+    if (this.blankDedup) {
+      result.triples = deduplicateBlankNodes(result.triples);
+    }
+
+    return result;
   }
 
   private streamToString(stream: Readable): Promise<string> {

@@ -9,6 +9,7 @@ interface CliOptions {
   port?: number;
   host?: string;
   html?: boolean;
+  'no-blank-dedup'?: boolean;
   verbose?: boolean;
   help?: boolean;
 }
@@ -37,6 +38,10 @@ async function main() {
         short: 'o',
         description: 'Enable HTML mode (return HTML table instead of RDF)',
       },
+      'no-blank-dedup': {
+        type: 'boolean',
+        description: 'Disable blank node deduplication',
+      },
       verbose: {
         type: 'boolean',
         short: 'v',
@@ -63,6 +68,7 @@ Usage: sparql-to-ld [options]
     -p, --port <number>    Server port (default: 3000)
     -h, --host <string>    Server host (default: 0.0.0.0)
     -o, --html             Enable HTML mode (return HTML table instead of RDF)
+        --no-blank-dedup   Disable blank node deduplication
     -v, --verbose          Enable verbose logging (including SPARQL queries)
     -?, --help             Show this help message
 
@@ -110,6 +116,9 @@ Example config file (sparql-to-ld.json):
     }
     if (options.html) {
       config.html = true;
+    }
+    if (options['no-blank-dedup']) {
+      config.blankDedup = false;
     }
 
     const server = await createServer(config);

@@ -96,7 +96,8 @@ export class UriTranslator {
   }
 
   private isBlankNode(node: Iri | BlankNode | Literal): node is BlankNode {
-    return typeof node === 'string' && node.startsWith('_:');
+    if (typeof node !== 'string') return false;
+    return node.startsWith('_:') || /^b\d+_/.test(node);
   }
 
   private isLiteral(node: Iri | BlankNode | Literal): node is Literal {

@@ -6,7 +6,7 @@ Serve RDF resources' CBDs (Concise Bounded Descriptions) by translating Linked D
 
 - Translate external URIs to internal SPARQL endpoint URIs (request translation)
 - Translate internal SPARQL responses back to external URIs (response translation)
-- Multiple endpoint modes: DESCRIBE, forward/backward/symmetric chaining (fwd-one, fwd-two, back-one, back-two, sym-one, sym-two)
+- Multiple endpoint modes: DESCRIBE, forward/backward/symmetric chaining (fwd-one, fwd-two, back-one, back-two, sym-one, sym-two, fwd-one-blank, back-one-blank, sym-one-blank)
 - Support for both SPARQL and direct HTTP endpoints
 - Content negotiation (Turtle, N-Triples, RDF/XML)
 - CORS support
@@ -92,22 +92,38 @@ PORT=3000
 
 ### Configuration Schema
 
-| Field                           | Type    | Description                                                                                |
-| ------------------------------- | ------- | ------------------------------------------------------------------------------------------ |
-| `server.host`                   | string  | Server bind address (default: `0.0.0.0`)                                                   |
-| `server.port`                   | number  | Server port (default: `3000`)                                                              |
-| `cors.origin`                   | string  | CORS origin (default: `*`)                                                                 |
-| `translateResponse`             | boolean | Enable response URI translation (default: `true`)                                          |
-| `verbose`                       | boolean | Enable verbose logging of SPARQL queries (default: `false`)                                |
-| `sources`                       | array   | Array of dataset source configurations                                                     |
-| `sources[].dsName`              | string  | Dataset name for routing                                                                   |
-| `sources[].originalPrefix`      | string  | Prefix used internally by the SPARQL endpoint                                              |
-| `sources[].externalPrefix`      | string  | Public-facing prefix (auto-generated if omitted)                                           |
-| `sources[].endpoints`           | array   | Array of endpoint configurations                                                           |
-| `sources[].endpoints[].type`    | string  | Endpoint type: `sparql` or `http`                                                          |
-| `sources[].endpoints[].mode`    | string  | For SPARQL: `describe`, `fwd-one`, `fwd-two`, `back-one`, `back-two`, `sym-one`, `sym-two` |
-| `sources[].endpoints[].url`     | string  | Endpoint URL                                                                               |
-| `sources[].endpoints[].headers` | object  | Optional custom headers for the endpoint                                                   |
+| Field                           | Type    | Description                                                                                                                                    |
+| ------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `server.host`                   | string  | Server bind address (default: `0.0.0.0`)                                                                                                       |
+| `server.port`                   | number  | Server port (default: `3000`)                                                                                                                  |
+| `cors.origin`                   | string  | CORS origin (default: `*`)                                                                                                                     |
+| `translateResponse`             | boolean | Enable response URI translation (default: `true`)                                                                                              |
+| `blankDedup`                    | boolean | Enable blank node deduplication (default: `true`)                                                                                              |
+| `verbose`                       | boolean | Enable verbose logging of SPARQL queries (default: `false`)                                                                                    |
+| `sources`                       | array   | Array of dataset source configurations                                                                                                         |
+| `sources[].dsName`              | string  | Dataset name for routing                                                                                                                       |
+| `sources[].originalPrefix`      | string  | Prefix used internally by the SPARQL endpoint                                                                                                  |
+| `sources[].externalPrefix`      | string  | Public-facing prefix (auto-generated if omitted)                                                                                               |
+| `sources[].endpoints`           | array   | Array of endpoint configurations                                                                                                               |
+| `sources[].endpoints[].type`    | string  | Endpoint type: `sparql` or `http`                                                                                                              |
+| `sources[].endpoints[].mode`    | string  | For SPARQL: `describe`, `fwd-one`, `fwd-two`, `back-one`, `back-two`, `sym-one`, `sym-two`, `fwd-one-blank`, `back-one-blank`, `sym-one-blank` |
+| `sources[].endpoints[].url`     | string  | Endpoint URL                                                                                                                                   |
+| `sources[].endpoints[].headers` | object  | Optional custom headers for the endpoint                                                                                                       |
+
+### Endpoint Modes
+
+| Mode             | Description                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------- |
+| `describe`       | Standard SPARQL DESCRIBE query                                                                          |
+| `fwd-one`        | Direct forward links: `<iri> ?p ?o`                                                                     |
+| `fwd-two`        | Forward links + blank node expansion: `<iri> ?p ?o` + all triples about blank nodes found               |
+| `back-one`       | Direct backward links: `?s ?p <iri>`                                                                    |
+| `back-two`       | Backward links + blank node expansion: `?s ?p <iri>` + all triples about blank nodes found              |
+| `sym-one`        | Union of fwd-one and back-one: all direct triples about the resource (subject OR object)                |
+| `sym-two`        | Full symmetric 2-hop pattern: all direct triples + all triples about linked resources + blank expansion |
+| `fwd-one-blank`  | Forward links + follow blank nodes: `<iri> ?p ?o` + all triples about any blank nodes in those triples  |
+| `back-one-blank` | Backward links + follow blank nodes: `?s ?p <iri>` + all triples about any blank nodes in those triples |
+| `sym-one-blank`  | Symmetric + follow blank nodes: all triples about resource + all triples about any blank nodes found    |
 
 ## Usage
 

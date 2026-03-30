@@ -60,7 +60,10 @@ export type EndpointMode =
   | 'back-one'
   | 'back-two'
   | 'sym-one'
-  | 'sym-two';
+  | 'sym-two'
+  | 'fwd-one-blank'
+  | 'back-one-blank'
+  | 'sym-one-blank';
 
 /**
  * A SPARQL endpoint with mode configuration

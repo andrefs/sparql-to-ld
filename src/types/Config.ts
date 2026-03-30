@@ -38,6 +38,7 @@ export interface ServerConfig {
   sources?: SourceConfig[];
   translateResponse?: boolean;
   html?: boolean;
+  blankDedup?: boolean;
   verbose?: boolean;
 }
 
@@ -94,6 +95,9 @@ export const serverConfigSchema = z.object({
                 'back-two',
                 'sym-one',
                 'sym-two',
+                'fwd-one-blank',
+                'back-one-blank',
+                'sym-one-blank',
               ])
               .optional(),
             url: z.string(),
@@ -105,6 +109,7 @@ export const serverConfigSchema = z.object({
     .optional(),
   translateResponse: z.boolean().optional(),
   html: z.boolean().optional(),
+  blankDedup: z.boolean().optional(),
   verbose: z.boolean().optional(),
 });
 

@@ -231,6 +231,69 @@ WHERE {
   }
 }`;
 
+    case 'fwd-one-blank':
+      return `CONSTRUCT {
+  ${escaped} ?p ?o .
+  ?x ?p2 ?o2 .
+}
+WHERE {
+  {
+    ${escaped} ?p ?o .
+  }
+  UNION
+  {
+    ${escaped} ?p1 ?x .
+    ?x ?p2 ?o2 .
+    FILTER(isBlank(?x))
+  }
+}`;
+
+    case 'back-one-blank':
+      return `CONSTRUCT {
+  ?s ?p ${escaped} .
+  ?s2 ?p2 ?x .
+}
+WHERE {
+  {
+    ?s ?p ${escaped} .
+  }
+  UNION
+  {
+    ?x ?p1 ${escaped} .
+    ?s2 ?p2 ?x .
+    FILTER(isBlank(?x))
+  }
+}`;
+
+    case 'sym-one-blank':
+      return `CONSTRUCT {
+  ${escaped} ?p ?o .
+  ?s ?p ${escaped} .
+  ?x ?p2 ?o2 .
+  ?s2 ?p2 ?x .
+}
+WHERE {
+  {
+    ${escaped} ?p ?o .
+  }
+  UNION
+  {
+    ?s ?p ${escaped} .
+  }
+  UNION
+  {
+    ${escaped} ?p1 ?x .
+    ?x ?p2 ?o2 .
+    FILTER(isBlank(?x))
+  }
+  UNION
+  {
+    ?x ?p1 ${escaped} .
+    ?s2 ?p2 ?x .
+    FILTER(isBlank(?x))
+  }
+}`;
+
     default:
       throw new Error(`Unknown endpoint mode: ${mode}`);
   }
