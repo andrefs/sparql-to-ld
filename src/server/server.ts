@@ -118,6 +118,9 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
           ? translateResponseQuery !== 'false'
           : (config.translateResponse ?? true);
 
+      const isHtmlMode =
+        negotiated.format === 'text/html' || (negotiated.format === 'text/turtle' && config.html);
+
       const source = sourceManager.getSource(dsName);
       if (!source) {
         reply.code(404).send({ error: `Unknown dataset: ${dsName}` });
@@ -132,8 +135,30 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
         const { triples, prefixes, base } = await sourceManager.fetchResource(
           dsName,
           internalIri,
-          negotiated.format
+          isHtmlMode ? 'text/turtle' : negotiated.format
         );
+
+        if (isHtmlMode) {
+          const translatedUris = new Map<string, string>();
+
+          if (translator) {
+            for (const triple of triples) {
+              if (typeof triple.subject === 'string' && !triple.subject.startsWith('_:')) {
+                translatedUris.set(triple.subject, translator.translateUri(triple.subject));
+              }
+              if (typeof triple.predicate === 'string' && !triple.predicate.startsWith('_:')) {
+                translatedUris.set(triple.predicate, translator.translateUri(triple.predicate));
+              }
+              if (typeof triple.object === 'string' && !triple.object.startsWith('_:')) {
+                translatedUris.set(triple.object, translator.translateUri(triple.object));
+              }
+            }
+          }
+
+          const serializer = new RdfSerializer();
+          const result = serializer.serializeHtml(triples, translatedUris);
+          return reply.header('Content-Type', 'text/html; charset=utf-8').send(result);
+        }
 
         if (!translateResponse || !translator) {
           const serializer = new RdfSerializer();
@@ -180,7 +205,7 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
     if (acceptHeader) {
       const accepts = acceptHeader.split(',').map((a) => a.trim().split(';')[0]);
       for (const accept of accepts) {
-        if (accept in RDF_FORMATS) {
+        if (accept !== 'text/html' && accept in RDF_FORMATS) {
           return { format: accept as RdfFormat };
         }
       }
@@ -202,6 +227,8 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
       case 'rdfxml':
       case 'rdf+xml':
         return 'application/rdf+xml';
+      case 'html':
+        return 'text/html';
       default:
         throw new UnsupportedFormatError(`Unsupported format: ${format}`, format);
     }

@@ -8,6 +8,7 @@ interface CliOptions {
   config?: string;
   port?: number;
   host?: string;
+  html?: boolean;
   verbose?: boolean;
   help?: boolean;
 }
@@ -31,6 +32,11 @@ async function main() {
         short: 'h',
         description: 'Server host (overrides config)',
       },
+      html: {
+        type: 'boolean',
+        short: 'o',
+        description: 'Enable HTML mode (return HTML table instead of RDF)',
+      },
       verbose: {
         type: 'boolean',
         short: 'v',
@@ -52,12 +58,13 @@ sparql-to-ld - Serve RDF resources with URI translation
 
 Usage: sparql-to-ld [options]
 
- Options:
-   -c, --config <path>    Path to configuration file (default: ./sparql-to-ld.json)
-   -p, --port <number>    Server port (default: 3000)
-   -h, --host <string>    Server host (default: 0.0.0.0)
-   -v, --verbose          Enable verbose logging (including SPARQL queries)
-   -?, --help             Show this help message
+  Options:
+    -c, --config <path>    Path to configuration file (default: ./sparql-to-ld.json)
+    -p, --port <number>    Server port (default: 3000)
+    -h, --host <string>    Server host (default: 0.0.0.0)
+    -o, --html             Enable HTML mode (return HTML table instead of RDF)
+    -v, --verbose          Enable verbose logging (including SPARQL queries)
+    -?, --help             Show this help message
 
 Example config file (sparql-to-ld.json):
 {
@@ -101,6 +108,9 @@ Example config file (sparql-to-ld.json):
     if (options.verbose) {
       config.verbose = true;
     }
+    if (options.html) {
+      config.html = true;
+    }
 
     const server = await createServer(config);
 
@@ -135,15 +145,6 @@ Example config file (sparql-to-ld.json):
       `Response translation: ${(config.translateResponse ?? true) ? 'enabled' : 'disabled'}`
     );
     console.log(`Verbose logging: ${config.verbose ? 'enabled' : 'disabled'}`);
-
-    const shutdown = async (signal: string) => {
-      console.log(`\nReceived ${signal}, shutting down...`);
-      await server.close();
-      process.exit(0);
-    };
-
-    process.on('SIGTERM', () => shutdown('SIGTERM'));
-    process.on('SIGINT', () => shutdown('SIGINT'));
   } catch (error) {
     console.error('Failed to start server:', error instanceof Error ? error.message : error);
     process.exit(1);

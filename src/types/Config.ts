@@ -37,6 +37,7 @@ export interface ServerConfig {
   logging?: LoggingConfig;
   sources?: SourceConfig[];
   translateResponse?: boolean;
+  html?: boolean;
   verbose?: boolean;
 }
 
@@ -103,6 +104,7 @@ export const serverConfigSchema = z.object({
     )
     .optional(),
   translateResponse: z.boolean().optional(),
+  html: z.boolean().optional(),
   verbose: z.boolean().optional(),
 });
 

@@ -340,6 +340,101 @@ describe('Server Integration', () => {
         expect(response.headers['content-type']).toContain('text/turtle');
       });
 
+      it('should accept ?format=html query parameter', async () => {
+        global.fetch = createMockFetch();
+        const config = createConfig({
+          sources: [
+            {
+              dsName: 'dbpedia',
+              originalPrefix: 'http://internal.org/',
+              endpoints: [
+                {
+                  type: 'sparql',
+                  mode: 'describe',
+                  url: 'http://localhost:9999/dataset',
+                },
+              ],
+            },
+          ],
+        });
+        server = createServer(config);
+        await server.ready();
+
+        const response = await server.inject({
+          method: 'GET',
+          url: '/ld/dbpedia/subject?format=html',
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(response.headers['content-type']).toContain('text/html');
+        expect(response.body.toString()).toContain('<!DOCTYPE html>');
+        expect(response.body.toString()).toContain('<table>');
+        expect(response.body.toString()).toContain('<th>Subject</th>');
+      });
+
+      it('should enable HTML mode with config.html=true', async () => {
+        global.fetch = createMockFetch();
+        const config = createConfig({
+          sources: [
+            {
+              dsName: 'dbpedia',
+              originalPrefix: 'http://internal.org/',
+              endpoints: [
+                {
+                  type: 'sparql',
+                  mode: 'describe',
+                  url: 'http://localhost:9999/dataset',
+                },
+              ],
+            },
+          ],
+          html: true,
+        });
+        server = createServer(config);
+        await server.ready();
+
+        const response = await server.inject({
+          method: 'GET',
+          url: '/ld/dbpedia/subject',
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(response.headers['content-type']).toContain('text/html');
+        expect(response.body.toString()).toContain('<!DOCTYPE html>');
+        expect(response.body.toString()).toContain('<table>');
+      });
+
+      it('should display original URIs in HTML with translated links', async () => {
+        global.fetch = createMockFetch();
+        const config = createConfig({
+          sources: [
+            {
+              dsName: 'dbpedia',
+              originalPrefix: 'http://internal.org/',
+              endpoints: [
+                {
+                  type: 'sparql',
+                  mode: 'describe',
+                  url: 'http://localhost:9999/dataset',
+                },
+              ],
+            },
+          ],
+        });
+        server = createServer(config);
+        await server.ready();
+
+        const response = await server.inject({
+          method: 'GET',
+          url: '/ld/dbpedia/subject?format=html',
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(response.headers['content-type']).toContain('text/html');
+        expect(response.body.toString()).toContain('http://internal.org/');
+        expect(response.body.toString()).toContain('href="http://localhost:3000/ld/dbpedia/');
+      });
+
       // JSON-LD parsing not yet supported (n3 limitation)
       // it('should respect Accept header for JSON-LD', async () => {
       //   global.fetch = createMockFetch();

@@ -9,6 +9,7 @@ export const RDF_FORMATS: Record<RdfFormat, { parserFormat: string; writerFormat
   'application/n-triples': { parserFormat: 'N-Triples', writerFormat: 'N-Triples' },
   'application/ld+json': { parserFormat: 'JSON-LD', writerFormat: 'JSON-LD' },
   'application/rdf+xml': { parserFormat: 'RDF/XML', writerFormat: 'RDF/XML' },
+  'text/html': { parserFormat: 'Turtle', writerFormat: 'Turtle' },
 };
 
 function quadToTriple(q: Quad): Triple {
@@ -155,6 +156,99 @@ export class RdfSerializer {
   serializeWithMime(dataset: Dataset, mimeType: string): string {
     const format = this.mimeToFormat(mimeType);
     return this.serialize(dataset, format);
+  }
+
+  serializeHtml(dataset: Dataset, translatedUris: Map<string, string> = new Map()): string {
+    const escapeHtml = (str: string): string => {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/#/g, '&#35;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    };
+
+    const escapeHref = (str: string): string => {
+      return str
+        .replace(/#/g, '%23')
+        .replace(/&/g, '%26')
+        .replace(/</g, '%3C')
+        .replace(/>/g, '%3E');
+    };
+
+    const getLink = (uri: string): string => {
+      return translatedUris.get(uri) ?? uri;
+    };
+
+    const formatSubjectOrPredicate = (term: Iri | BlankNode): string => {
+      if (typeof term === 'string' && term.startsWith('_:')) {
+        return escapeHtml(term);
+      }
+      const href = getLink(term);
+      const display = escapeHtml(term);
+      return `<a href="${escapeHref(href)}">${display}</a>`;
+    };
+
+    const formatObject = (term: Iri | BlankNode | Literal): string => {
+      if (typeof term === 'string') {
+        if (term.startsWith('_:')) {
+          return escapeHtml(term);
+        }
+        const href = getLink(term);
+        const display = escapeHtml(term);
+        return `<a href="${escapeHref(href)}">${display}</a>`;
+      }
+      return `<span class="literal">"${escapeHtml(term.value)}"</span>`;
+    };
+
+    let html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>RDF Description</title>
+  <style>
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; word-break: break-all; }
+    th { background-color: #f2f2f2; text-align: left; }
+    a { color: #0066cc; }
+    .literal { color: #666; font-style: italic; }
+  </style>
+</head>
+<body>
+  <table>
+    <thead>
+      <tr>
+        <th>Subject</th>
+        <th>Predicate</th>
+        <th>Object</th>
+      </tr>
+    </thead>
+    <tbody>
+`;
+
+    if (dataset.length === 0) {
+      html += `      <tr>
+        <td colspan="3">No results found</td>
+      </tr>
+`;
+    } else {
+      for (const triple of dataset) {
+        html += `      <tr>
+        <td>${formatSubjectOrPredicate(triple.subject)}</td>
+        <td>${formatSubjectOrPredicate(triple.predicate)}</td>
+        <td>${formatObject(triple.object)}</td>
+      </tr>
+`;
+      }
+    }
+
+    html += `    </tbody>
+  </table>
+</body>
+</html>
+`;
+
+    return html;
   }
 
   private mimeToFormat(mimeType: string): RdfFormat {

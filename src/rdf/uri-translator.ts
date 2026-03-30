@@ -144,4 +144,8 @@ export class UriTranslator {
     const translated = this.translateIri(base);
     return translated !== base ? translated : undefined;
   }
+
+  translateUri(uri: string): string {
+    return this.translateIri(uri);
+  }
 }

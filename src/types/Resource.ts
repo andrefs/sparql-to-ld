@@ -47,7 +47,8 @@ export type RdfFormat =
   | 'text/turtle'
   | 'application/n-triples'
   | 'application/ld+json'
-  | 'application/rdf+xml';
+  | 'application/rdf+xml'
+  | 'text/html';
 
 /**
  * Supported endpoint modes for retrieving RDF resources
