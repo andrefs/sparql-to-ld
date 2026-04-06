@@ -3,7 +3,7 @@ import { Readable } from 'stream';
 import StreamClient from 'sparql-http-client';
 import type { RdfFormat, EndpointMode } from '../types/Resource.js';
 import { EndpointError } from '../types/Errors.js';
-import { describeResource, buildConstructQuery } from './query-builder.js';
+import { describeResource, buildConstructQuery, buildLiteralQuery } from './query-builder.js';
 
 /**
  * Wrapper around sparql-http-client providing a simplified interface
@@ -132,5 +132,38 @@ export class SparqlClient {
    */
   get endpointUrl(): string {
     return this.endpoint;
+  }
+
+  /**
+   * Query for triples containing a specific literal as object.
+   * Returns RDF stream with all matching triples.
+   *
+   * @param literal - The literal to search for (e.g., '"elevator car"' or '"value"@en')
+   * @param format - Desired RDF format (MIME type) - ignored for SELECT queries
+   * @returns Readable stream of RDF data
+   */
+  async literal(literal: string, _format: RdfFormat): Promise<Readable> {
+    try {
+      const query = buildLiteralQuery(literal);
+      const headers = new Headers({ Accept: 'application/sparql-results+json' });
+      const response = await this.client.get(query, { headers });
+
+      if (!response.ok) {
+        throw new Error(`SPARQL request failed: ${response.status} ${response.statusText}`);
+      }
+
+      if (!response.body) {
+        throw new Error('No response body received');
+      }
+
+      return Readable.fromWeb(response.body as any);
+    } catch (err) {
+      throw new EndpointError(
+        `Failed to fetch literal from SPARQL endpoint: ${err instanceof Error ? err.message : String(err)}`,
+        undefined,
+        this.endpoint,
+        err
+      );
+    }
   }
 }

@@ -137,11 +137,24 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
       server.log.info(`[${dsName}] Request for ${externalIri} -> ${internalIri}`);
 
       try {
-        const { triples, prefixes, base } = await sourceManager.fetchResource(
-          dsName,
-          internalIri,
-          isHtmlMode ? 'text/turtle' : negotiated.format
-        );
+        const isLiteralQuery = pathSuffix.startsWith('"') || pathSuffix.startsWith('%22');
+
+        let triples, prefixes, base;
+
+        if (isLiteralQuery) {
+          const decodedLiteral = decodeURIComponent(pathSuffix);
+          ({ triples, prefixes, base } = await sourceManager.fetchByLiteral(
+            dsName,
+            decodedLiteral,
+            isHtmlMode ? 'text/turtle' : negotiated.format
+          ));
+        } else {
+          ({ triples, prefixes, base } = await sourceManager.fetchResource(
+            dsName,
+            internalIri,
+            isHtmlMode ? 'text/turtle' : negotiated.format
+          ));
+        }
 
         if (isHtmlMode) {
           const translatedUris = new Map<string, string>();

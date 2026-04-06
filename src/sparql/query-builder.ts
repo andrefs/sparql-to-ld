@@ -298,3 +298,7 @@ WHERE {
       throw new Error(`Unknown endpoint mode: ${mode}`);
   }
 }
+
+export function buildLiteralQuery(literal: string): string {
+  return `SELECT ?s ?p ?o WHERE { ?s ?p ${literal} }`;
+}
