@@ -27,7 +27,7 @@ interface SparqlResult {
   o: SparqlBinding;
 }
 
-function parseSparqlJsonResults(jsonString: string): Dataset {
+export function parseSparqlJsonResults(jsonString: string): Dataset {
   const results: Dataset = [];
 
   try {
@@ -39,8 +39,8 @@ function parseSparqlJsonResults(jsonString: string): Dataset {
     }
 
     for (const binding of bindings) {
-      const subject = binding.s.type === 'bnode' ? binding.s.value : `<${binding.s.value}>`;
-      const predicate = `<${binding.p.value}>`;
+      const subject = binding.s.type === 'bnode' ? binding.s.value : binding.s.value;
+      const predicate = binding.p.type === 'bnode' ? binding.p.value : binding.p.value;
 
       let object: string | Literal;
       if (binding.o.type === 'bnode') {
@@ -54,7 +54,7 @@ function parseSparqlJsonResults(jsonString: string): Dataset {
         }
         object = lit;
       } else {
-        object = `<${binding.o.value}>`;
+        object = binding.o.value;
       }
 
       results.push({
