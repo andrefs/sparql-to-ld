@@ -6,7 +6,7 @@ interface TripleSignature {
 }
 
 function isBlankNode(id: string): boolean {
-  return !id.startsWith('<');
+  return id.startsWith('_:') || /^b\d+_/.test(id);
 }
 
 function getObjectString(obj: string | Literal): string {
