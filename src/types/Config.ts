@@ -46,6 +46,7 @@ export interface SourceConfig {
   dsName: string;
   originalPrefix: string;
   endpoints: EndpointConfig[];
+  uriMappings?: [string, string][];
 }
 
 export interface EndpointConfig {
@@ -83,6 +84,7 @@ export const serverConfigSchema = z.object({
       z.object({
         dsName: z.string(),
         originalPrefix: z.string(),
+        uriMappings: z.array(z.tuple([z.string(), z.string()])).optional(),
         endpoints: z.array(
           z.object({
             type: z.enum(['sparql', 'http']),

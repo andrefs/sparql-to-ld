@@ -85,6 +85,39 @@ describe('UriTranslator', () => {
       );
       expect(result).toBe('http://dbpedia.org/resource/Cheddar');
     });
+
+    it('should apply uriMappings in reverse direction for incoming requests', () => {
+      const translator = new UriTranslator([
+        {
+          dsName: 'test',
+          originalPrefix: 'http://internal.org/',
+          uriMappings: [['#', '%23']],
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test' }],
+        },
+      ]);
+
+      const result = translator.translateRequestUri(
+        'http://localhost:3000/ld/test/resource%23section'
+      );
+      expect(result).toBe('http://internal.org/resource#section');
+    });
+
+    it('should apply uriMappings in order for incoming requests', () => {
+      const translator = new UriTranslator([
+        {
+          dsName: 'test',
+          originalPrefix: 'http://internal.org/',
+          uriMappings: [
+            ['_', '%5F'],
+            ['a', 'b'],
+          ],
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test' }],
+        },
+      ]);
+
+      const result = translator.translateRequestUri('http://localhost:3000/ld/test/a%5Ffile');
+      expect(result).toBe('http://internal.org/a_file');
+    });
   });
 
   describe('translateDataset', () => {
@@ -194,6 +227,34 @@ describe('UriTranslator', () => {
 
       const result = translator.translateDataset(dataset, { translateResponse: false });
       expect(result).toEqual(dataset); // unchanged
+    });
+
+    it('should apply uriMappings in order to translated IRIs', () => {
+      const translator = new UriTranslator([
+        {
+          dsName: 'test',
+          originalPrefix: 'http://internal.org/',
+          uriMappings: [['#', '%23']],
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test' }],
+        },
+      ]);
+
+      const dataset = [
+        {
+          subject: 'http://internal.org/resource#section',
+          predicate: 'http://internal.org/predicate',
+          object: 'http://internal.org/object#frag',
+        },
+      ];
+
+      const result = translator.translateDataset(dataset);
+      expect(result).toEqual([
+        {
+          subject: 'http://localhost:3000/ld/test/resource%23section',
+          predicate: 'http://localhost:3000/ld/test/predicate',
+          object: 'http://localhost:3000/ld/test/object%23frag',
+        },
+      ]);
     });
   });
 

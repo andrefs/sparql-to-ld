@@ -96,6 +96,7 @@ export interface Source {
   dsName: string;
   originalPrefix: string;
   endpoints: Endpoint[];
+  uriMappings?: [string, string][];
 }
 
 /**

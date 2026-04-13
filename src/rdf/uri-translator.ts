@@ -70,7 +70,9 @@ export class UriTranslator {
     }
 
     if (bestMatch) {
-      return bestMatch.originalPrefix + uri.slice(matchedPrefixLength);
+      const suffix = normalizedUri.slice(matchedPrefixLength);
+      const mappedSuffix = this.applyMappings(suffix, bestMatch.uriMappings, 'reverse');
+      return bestMatch.originalPrefix + mappedSuffix;
     }
 
     return uri;
@@ -123,11 +125,29 @@ export class UriTranslator {
     if (bestMatch && matchedDsName) {
       const externalPrefix = this.sourceExternalPrefixes.get(matchedDsName);
       if (externalPrefix) {
-        return externalPrefix + iri.slice(bestMatch.originalPrefix.length);
+        const suffix = iri.slice(bestMatch.originalPrefix.length);
+        const mappedSuffix = this.applyMappings(suffix, bestMatch.uriMappings, 'forward');
+        return externalPrefix + mappedSuffix;
       }
     }
 
     return iri;
+  }
+
+  private applyMappings(
+    value: string,
+    mappings: [string, string][] | undefined,
+    direction: 'forward' | 'reverse'
+  ): string {
+    if (!mappings || mappings.length === 0) return value;
+    let result = value;
+    for (const [from, to] of mappings) {
+      const source = direction === 'forward' ? from : to;
+      const target = direction === 'forward' ? to : from;
+      if (source === '') continue;
+      result = result.split(source).join(target);
+    }
+    return result;
   }
 
   translatePrefixes(prefixes: Record<string, string>): Record<string, string> {
