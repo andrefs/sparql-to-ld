@@ -78,23 +78,31 @@ export class UriTranslator {
     return uri;
   }
 
-  translateDataset(dataset: Dataset, options?: { translateResponse?: boolean }): Dataset {
+  translateDataset(
+    dataset: Dataset,
+    options?: { translateResponse?: boolean; dsName?: string }
+  ): Dataset {
     if (options?.translateResponse === false) {
       return dataset;
     }
 
+    const dsName = options?.dsName;
+
     return dataset.map((triple) => ({
-      subject: this.translateNode(triple.subject) as Iri | BlankNode,
-      predicate: this.translateIri(triple.predicate),
-      object: this.translateNode(triple.object),
+      subject: this.translateNode(triple.subject, dsName) as Iri | BlankNode,
+      predicate: this.translateIri(triple.predicate, dsName),
+      object: this.translateNode(triple.object, dsName),
     }));
   }
 
-  private translateNode(node: Iri | BlankNode | Literal): Iri | BlankNode | Literal {
+  private translateNode(
+    node: Iri | BlankNode | Literal,
+    dsName?: string
+  ): Iri | BlankNode | Literal {
     if (this.isBlankNode(node) || this.isLiteral(node)) {
       return node;
     }
-    return this.translateIri(node);
+    return this.translateIri(node, dsName);
   }
 
   private isBlankNode(node: Iri | BlankNode | Literal): node is BlankNode {
@@ -106,7 +114,7 @@ export class UriTranslator {
     return typeof node !== 'string' && 'value' in node;
   }
 
-  private translateIri(iri: Iri): Iri {
+  private translateIri(iri: Iri, dsName?: string): Iri {
     let bestMatch: Source | null = null;
     let maxLength = -1;
     let matchedDsName: string | null = null;
@@ -119,6 +127,16 @@ export class UriTranslator {
           bestMatch = source;
           matchedDsName = source.dsName;
         }
+      }
+    }
+
+    if (dsName && bestMatch && bestMatch.dsName !== dsName) {
+      const exactSource = this.sources.find(
+        (s) => s.dsName === dsName && s.originalPrefix && iri.startsWith(s.originalPrefix)
+      );
+      if (exactSource) {
+        bestMatch = exactSource;
+        matchedDsName = dsName;
       }
     }
 
@@ -150,23 +168,23 @@ export class UriTranslator {
     return result;
   }
 
-  translatePrefixes(prefixes: Record<string, string>): Record<string, string> {
+  translatePrefixes(prefixes: Record<string, string>, dsName?: string): Record<string, string> {
     const result: Record<string, string> = {};
 
     for (const [prefix, iri] of Object.entries(prefixes)) {
-      const translated = this.translateIri(iri);
+      const translated = this.translateIri(iri, dsName);
       result[prefix] = translated;
     }
 
     return result;
   }
 
-  translateBase(base: string): string | undefined {
-    const translated = this.translateIri(base);
+  translateBase(base: string, dsName?: string): string | undefined {
+    const translated = this.translateIri(base, dsName);
     return translated !== base ? translated : undefined;
   }
 
-  translateUri(uri: string): string {
-    return this.translateIri(uri);
+  translateUri(uri: string, dsName?: string): string {
+    return this.translateIri(uri, dsName);
   }
 }

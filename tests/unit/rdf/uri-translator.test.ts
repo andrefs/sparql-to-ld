@@ -256,6 +256,70 @@ describe('UriTranslator', () => {
         },
       ]);
     });
+
+    it('should use the correct source when dsName is provided and multiple sources share originalPrefix', () => {
+      const translator = new UriTranslator([
+        {
+          dsName: 'synth01',
+          originalPrefix: 'http://example.org/rdf/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:3030/s1/sparql' }],
+        },
+        {
+          dsName: 'synth02',
+          originalPrefix: 'http://example.org/rdf/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:3030/s2/sparql' }],
+        },
+      ]);
+
+      const dataset = [
+        {
+          subject: 'http://example.org/rdf/subject',
+          predicate: 'http://example.org/rdf/predicate',
+          object: 'http://example.org/rdf/object',
+        },
+      ];
+
+      const result = translator.translateDataset(dataset, { dsName: 'synth02' });
+      expect(result).toEqual([
+        {
+          subject: 'http://localhost:3000/ld/synth02/subject',
+          predicate: 'http://localhost:3000/ld/synth02/predicate',
+          object: 'http://localhost:3000/ld/synth02/object',
+        },
+      ]);
+    });
+
+    it('should fall back to first longest-prefix match when dsName is not provided', () => {
+      const translator = new UriTranslator([
+        {
+          dsName: 'synth01',
+          originalPrefix: 'http://example.org/rdf/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:3030/s1/sparql' }],
+        },
+        {
+          dsName: 'synth02',
+          originalPrefix: 'http://example.org/rdf/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:3030/s2/sparql' }],
+        },
+      ]);
+
+      const dataset = [
+        {
+          subject: 'http://example.org/rdf/subject',
+          predicate: 'http://example.org/rdf/predicate',
+          object: 'http://example.org/rdf/object',
+        },
+      ];
+
+      const result = translator.translateDataset(dataset);
+      expect(result).toEqual([
+        {
+          subject: 'http://localhost:3000/ld/synth01/subject',
+          predicate: 'http://localhost:3000/ld/synth01/predicate',
+          object: 'http://localhost:3000/ld/synth01/object',
+        },
+      ]);
+    });
   });
 
   describe('translatePrefixes', () => {
@@ -296,6 +360,30 @@ describe('UriTranslator', () => {
       const result = translator.translatePrefixes(prefixes);
       expect(result).toEqual(prefixes);
     });
+
+    it('should use the correct source when dsName is provided and sources share originalPrefix', () => {
+      const translator = new UriTranslator([
+        {
+          dsName: 'synth01',
+          originalPrefix: 'http://example.org/rdf/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:3030/s1/sparql' }],
+        },
+        {
+          dsName: 'synth02',
+          originalPrefix: 'http://example.org/rdf/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:3030/s2/sparql' }],
+        },
+      ]);
+
+      const prefixes = {
+        ex: 'http://example.org/rdf/',
+      };
+
+      const result = translator.translatePrefixes(prefixes, 'synth02');
+      expect(result).toEqual({
+        ex: 'http://localhost:3000/ld/synth02/',
+      });
+    });
   });
 
   describe('translateBase', () => {
@@ -322,6 +410,24 @@ describe('UriTranslator', () => {
       ]);
 
       expect(translator.translateBase('http://other.org/base/')).toBeUndefined();
+    });
+
+    it('should use the correct source when dsName is provided and sources share originalPrefix', () => {
+      const translator = new UriTranslator([
+        {
+          dsName: 'synth01',
+          originalPrefix: 'http://example.org/rdf/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:3030/s1/sparql' }],
+        },
+        {
+          dsName: 'synth02',
+          originalPrefix: 'http://example.org/rdf/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:3030/s2/sparql' }],
+        },
+      ]);
+
+      const result = translator.translateBase('http://example.org/rdf/', 'synth02');
+      expect(result).toBe('http://localhost:3000/ld/synth02/');
     });
   });
 });

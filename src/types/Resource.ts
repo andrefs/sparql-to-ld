@@ -97,6 +97,7 @@ export interface Source {
   originalPrefix: string;
   endpoints: Endpoint[];
   uriMappings?: [string, string][];
+  comment?: string;
 }
 
 /**

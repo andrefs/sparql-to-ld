@@ -162,13 +162,16 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
           if (translator) {
             for (const triple of triples) {
               if (typeof triple.subject === 'string' && !isBlankNode(triple.subject)) {
-                translatedUris.set(triple.subject, translator.translateUri(triple.subject));
+                translatedUris.set(triple.subject, translator.translateUri(triple.subject, dsName));
               }
               if (typeof triple.predicate === 'string' && !isBlankNode(triple.predicate)) {
-                translatedUris.set(triple.predicate, translator.translateUri(triple.predicate));
+                translatedUris.set(
+                  triple.predicate,
+                  translator.translateUri(triple.predicate, dsName)
+                );
               }
               if (typeof triple.object === 'string' && !isBlankNode(triple.object)) {
-                translatedUris.set(triple.object, translator.translateUri(triple.object));
+                translatedUris.set(triple.object, translator.translateUri(triple.object, dsName));
               }
             }
           }
@@ -184,9 +187,9 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
           return reply.header('Content-Type', `${negotiated.format}; charset=utf-8`).send(result);
         }
 
-        const translatedDataset = translator.translateDataset(triples);
-        const translatedPrefixes = translator.translatePrefixes(prefixes);
-        const translatedBase = base ? translator.translateBase(base) : undefined;
+        const translatedDataset = translator.translateDataset(triples, { dsName });
+        const translatedPrefixes = translator.translatePrefixes(prefixes, dsName);
+        const translatedBase = base ? translator.translateBase(base, dsName) : undefined;
 
         const serializer = new RdfSerializer();
         const result = serializer.serialize(translatedDataset, negotiated.format, {
