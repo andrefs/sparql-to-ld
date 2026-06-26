@@ -6,14 +6,26 @@ describe('deduplicateBlankNodes', () => {
   it('does not collapse distinct IRIs with the same predicate/object', () => {
     const dataset: Dataset = [
       {
-        subject: 'http://wordnet-rdf.princeton.edu/wn31/103443585-n',
-        predicate: 'http://wordnet-rdf.princeton.edu/ontology#synset_member',
-        object: 'http://wordnet-rdf.princeton.edu/wn31/glass-n',
+        subject: {
+          termType: 'NamedNode',
+          value: 'http://wordnet-rdf.princeton.edu/wn31/103443585-n',
+        },
+        predicate: {
+          termType: 'NamedNode',
+          value: 'http://wordnet-rdf.princeton.edu/ontology#synset_member',
+        },
+        object: { termType: 'NamedNode', value: 'http://wordnet-rdf.princeton.edu/wn31/glass-n' },
       },
       {
-        subject: 'http://wordnet-rdf.princeton.edu/wn31/103694158-n',
-        predicate: 'http://wordnet-rdf.princeton.edu/ontology#synset_member',
-        object: 'http://wordnet-rdf.princeton.edu/wn31/glass-n',
+        subject: {
+          termType: 'NamedNode',
+          value: 'http://wordnet-rdf.princeton.edu/wn31/103694158-n',
+        },
+        predicate: {
+          termType: 'NamedNode',
+          value: 'http://wordnet-rdf.princeton.edu/ontology#synset_member',
+        },
+        object: { termType: 'NamedNode', value: 'http://wordnet-rdf.princeton.edu/wn31/glass-n' },
       },
     ];
 
@@ -26,20 +38,35 @@ describe('deduplicateBlankNodes', () => {
   it('deduplicates blank nodes with identical signatures', () => {
     const dataset: Dataset = [
       {
-        subject: '_:b0',
-        predicate: 'http://example.org/predicate',
-        object: 'http://example.org/object',
+        subject: { termType: 'BlankNode', value: 'b0' },
+        predicate: { termType: 'NamedNode', value: 'http://example.org/predicate' },
+        object: { termType: 'NamedNode', value: 'http://example.org/object' },
       },
       {
-        subject: '_:b1',
-        predicate: 'http://example.org/predicate',
-        object: 'http://example.org/object',
+        subject: { termType: 'BlankNode', value: 'b1' },
+        predicate: { termType: 'NamedNode', value: 'http://example.org/predicate' },
+        object: { termType: 'NamedNode', value: 'http://example.org/object' },
       },
     ];
 
     const result = deduplicateBlankNodes(dataset);
 
     expect(result).toHaveLength(1);
-    expect(result[0].subject).toBe('_:b0');
+    expect(result[0].subject).toEqual({ termType: 'BlankNode', value: 'b0' });
+  });
+
+  it('handles n3-style blank node IDs', () => {
+    const dataset: Dataset = [
+      {
+        subject: { termType: 'BlankNode', value: 'n3-128' },
+        predicate: { termType: 'NamedNode', value: 'http://example.org/p' },
+        object: { termType: 'NamedNode', value: 'http://example.org/o' },
+      },
+    ];
+
+    const result = deduplicateBlankNodes(dataset);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].subject).toEqual({ termType: 'BlankNode', value: 'n3-128' });
   });
 });

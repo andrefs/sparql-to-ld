@@ -132,18 +132,18 @@ describe('UriTranslator', () => {
 
       const dataset = [
         {
-          subject: 'http://internal.org/subject',
-          predicate: 'http://internal.org/predicate',
-          object: 'http://internal.org/object',
+          subject: { termType: 'NamedNode', value: 'http://internal.org/subject' },
+          predicate: { termType: 'NamedNode', value: 'http://internal.org/predicate' },
+          object: { termType: 'NamedNode', value: 'http://internal.org/object' },
         },
       ];
 
       const result = translator.translateDataset(dataset);
       expect(result).toEqual([
         {
-          subject: 'http://localhost:3000/ld/test/subject',
-          predicate: 'http://localhost:3000/ld/test/predicate',
-          object: 'http://localhost:3000/ld/test/object',
+          subject: { termType: 'NamedNode', value: 'http://localhost:3000/ld/test/subject' },
+          predicate: { termType: 'NamedNode', value: 'http://localhost:3000/ld/test/predicate' },
+          object: { termType: 'NamedNode', value: 'http://localhost:3000/ld/test/object' },
         },
       ]);
     });
@@ -159,18 +159,17 @@ describe('UriTranslator', () => {
 
       const dataset = [
         {
-          subject: '_:b0',
-          predicate: 'http://internal.org/predicate',
-          object: 'http://internal.org/object',
+          subject: { termType: 'BlankNode', value: 'b0' },
+          predicate: { termType: 'NamedNode', value: 'http://internal.org/predicate' },
+          object: { termType: 'NamedNode', value: 'http://internal.org/object' },
         },
       ];
 
       const result = translator.translateDataset(dataset);
-      expect(result[0].subject).toBe('_:b0');
+      expect(result[0].subject).toEqual({ termType: 'BlankNode', value: 'b0' });
     });
 
-    it('should translate literals with IRIs in value? (probably not needed - literals contain plain text)', () => {
-      // This is a design decision: we likely don't translate URIs inside literal values
+    it('should translate n3-style blank nodes unchanged', () => {
       const translator = new UriTranslator([
         {
           dsName: 'test',
@@ -181,9 +180,32 @@ describe('UriTranslator', () => {
 
       const dataset = [
         {
-          subject: 'http://internal.org/s',
-          predicate: 'http://internal.org/p',
+          subject: { termType: 'BlankNode', value: 'n3-128' },
+          predicate: { termType: 'NamedNode', value: 'http://internal.org/predicate' },
+          object: { termType: 'BlankNode', value: 'n3-129' },
+        },
+      ];
+
+      const result = translator.translateDataset(dataset);
+      expect(result[0].subject).toEqual({ termType: 'BlankNode', value: 'n3-128' });
+      expect(result[0].object).toEqual({ termType: 'BlankNode', value: 'n3-129' });
+    });
+
+    it('should translate literals with IRIs in value? (probably not needed - literals contain plain text)', () => {
+      const translator = new UriTranslator([
+        {
+          dsName: 'test',
+          originalPrefix: 'http://internal.org/',
+          endpoints: [{ type: 'sparql', mode: 'describe', url: 'http://localhost:9999/test' }],
+        },
+      ]);
+
+      const dataset = [
+        {
+          subject: { termType: 'NamedNode', value: 'http://internal.org/s' },
+          predicate: { termType: 'NamedNode', value: 'http://internal.org/p' },
           object: {
+            termType: 'Literal',
             value: 'http://internal.org/in-text',
             datatype: 'http://www.w3.org/2001/XMLSchema#string',
           },
@@ -191,7 +213,6 @@ describe('UriTranslator', () => {
       ];
 
       const result = translator.translateDataset(dataset);
-      // Literal value should NOT be translated (it's just text)
       expect((result[0].object as any).value).toBe('http://internal.org/in-text');
     });
 
@@ -219,14 +240,14 @@ describe('UriTranslator', () => {
 
       const dataset = [
         {
-          subject: 'http://internal.org/subject',
-          predicate: 'http://internal.org/predicate',
-          object: 'http://internal.org/object',
+          subject: { termType: 'NamedNode', value: 'http://internal.org/subject' },
+          predicate: { termType: 'NamedNode', value: 'http://internal.org/predicate' },
+          object: { termType: 'NamedNode', value: 'http://internal.org/object' },
         },
       ];
 
       const result = translator.translateDataset(dataset, { translateResponse: false });
-      expect(result).toEqual(dataset); // unchanged
+      expect(result).toEqual(dataset);
     });
 
     it('should apply uriMappings in order to translated IRIs', () => {
@@ -241,18 +262,21 @@ describe('UriTranslator', () => {
 
       const dataset = [
         {
-          subject: 'http://internal.org/resource#section',
-          predicate: 'http://internal.org/predicate',
-          object: 'http://internal.org/object#frag',
+          subject: { termType: 'NamedNode', value: 'http://internal.org/resource#section' },
+          predicate: { termType: 'NamedNode', value: 'http://internal.org/predicate' },
+          object: { termType: 'NamedNode', value: 'http://internal.org/object#frag' },
         },
       ];
 
       const result = translator.translateDataset(dataset);
       expect(result).toEqual([
         {
-          subject: 'http://localhost:3000/ld/test/resource%23section',
-          predicate: 'http://localhost:3000/ld/test/predicate',
-          object: 'http://localhost:3000/ld/test/object%23frag',
+          subject: {
+            termType: 'NamedNode',
+            value: 'http://localhost:3000/ld/test/resource%23section',
+          },
+          predicate: { termType: 'NamedNode', value: 'http://localhost:3000/ld/test/predicate' },
+          object: { termType: 'NamedNode', value: 'http://localhost:3000/ld/test/object%23frag' },
         },
       ]);
     });
@@ -273,18 +297,18 @@ describe('UriTranslator', () => {
 
       const dataset = [
         {
-          subject: 'http://example.org/rdf/subject',
-          predicate: 'http://example.org/rdf/predicate',
-          object: 'http://example.org/rdf/object',
+          subject: { termType: 'NamedNode', value: 'http://example.org/rdf/subject' },
+          predicate: { termType: 'NamedNode', value: 'http://example.org/rdf/predicate' },
+          object: { termType: 'NamedNode', value: 'http://example.org/rdf/object' },
         },
       ];
 
       const result = translator.translateDataset(dataset, { dsName: 'synth02' });
       expect(result).toEqual([
         {
-          subject: 'http://localhost:3000/ld/synth02/subject',
-          predicate: 'http://localhost:3000/ld/synth02/predicate',
-          object: 'http://localhost:3000/ld/synth02/object',
+          subject: { termType: 'NamedNode', value: 'http://localhost:3000/ld/synth02/subject' },
+          predicate: { termType: 'NamedNode', value: 'http://localhost:3000/ld/synth02/predicate' },
+          object: { termType: 'NamedNode', value: 'http://localhost:3000/ld/synth02/object' },
         },
       ]);
     });
@@ -305,18 +329,18 @@ describe('UriTranslator', () => {
 
       const dataset = [
         {
-          subject: 'http://example.org/rdf/subject',
-          predicate: 'http://example.org/rdf/predicate',
-          object: 'http://example.org/rdf/object',
+          subject: { termType: 'NamedNode', value: 'http://example.org/rdf/subject' },
+          predicate: { termType: 'NamedNode', value: 'http://example.org/rdf/predicate' },
+          object: { termType: 'NamedNode', value: 'http://example.org/rdf/object' },
         },
       ];
 
       const result = translator.translateDataset(dataset);
       expect(result).toEqual([
         {
-          subject: 'http://localhost:3000/ld/synth01/subject',
-          predicate: 'http://localhost:3000/ld/synth01/predicate',
-          object: 'http://localhost:3000/ld/synth01/object',
+          subject: { termType: 'NamedNode', value: 'http://localhost:3000/ld/synth01/subject' },
+          predicate: { termType: 'NamedNode', value: 'http://localhost:3000/ld/synth01/predicate' },
+          object: { termType: 'NamedNode', value: 'http://localhost:3000/ld/synth01/object' },
         },
       ]);
     });

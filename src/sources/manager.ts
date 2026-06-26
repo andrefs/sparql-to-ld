@@ -6,6 +6,8 @@ import type {
   HttpEndpoint,
   RdfFormat,
   Dataset,
+  NamedNode,
+  BlankNode,
   Literal,
 } from '../types/Resource.js';
 import { SparqlClient } from '../sparql/client.js';
@@ -39,14 +41,18 @@ export function parseSparqlJsonResults(jsonString: string): Dataset {
     }
 
     for (const binding of bindings) {
-      const subject = binding.s.type === 'bnode' ? binding.s.value : binding.s.value;
-      const predicate = binding.p.type === 'bnode' ? binding.p.value : binding.p.value;
+      const subject: NamedNode | BlankNode =
+        binding.s.type === 'bnode'
+          ? { termType: 'BlankNode', value: binding.s.value }
+          : { termType: 'NamedNode', value: binding.s.value };
 
-      let object: string | Literal;
+      const predicate: NamedNode = { termType: 'NamedNode', value: binding.p.value };
+
+      let object: NamedNode | BlankNode | Literal;
       if (binding.o.type === 'bnode') {
-        object = binding.o.value;
+        object = { termType: 'BlankNode', value: binding.o.value };
       } else if (binding.o.type === 'literal') {
-        const lit: Literal = { value: binding.o.value };
+        const lit: Literal = { termType: 'Literal', value: binding.o.value };
         if (binding.o['xml:lang']) {
           lit.language = binding.o['xml:lang'];
         } else if (binding.o.datatype) {
@@ -54,7 +60,7 @@ export function parseSparqlJsonResults(jsonString: string): Dataset {
         }
         object = lit;
       } else {
-        object = binding.o.value;
+        object = { termType: 'NamedNode', value: binding.o.value };
       }
 
       results.push({

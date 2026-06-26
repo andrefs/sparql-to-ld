@@ -1,17 +1,13 @@
-import { Dataset, Literal } from '../types/Resource.js';
+import { Dataset, NamedNode, BlankNode, Literal } from '../types/Resource.js';
 
 interface TripleSignature {
   predicate: string;
   object: string;
 }
 
-function isBlankNode(id: string): boolean {
-  return id.startsWith('_:') || /^b\d+_/.test(id);
-}
-
-function getObjectString(obj: string | Literal): string {
-  if (typeof obj === 'string') {
-    return obj;
+function getObjectString(obj: NamedNode | BlankNode | Literal): string {
+  if (obj.termType !== 'Literal') {
+    return obj.value;
   }
   let s = obj.value;
   if (obj.language) {
@@ -26,13 +22,13 @@ export function deduplicateBlankNodes(dataset: Dataset): Dataset {
   const blankNodeTriples = new Map<string, Set<TripleSignature>>();
 
   for (const triple of dataset) {
-    if (typeof triple.subject === 'string' && isBlankNode(triple.subject)) {
-      const bnId = triple.subject;
+    if (triple.subject.termType === 'BlankNode') {
+      const bnId = triple.subject.value;
       if (!blankNodeTriples.has(bnId)) {
         blankNodeTriples.set(bnId, new Set());
       }
       const objValue = getObjectString(triple.object);
-      blankNodeTriples.get(bnId)!.add({ predicate: triple.predicate, object: objValue });
+      blankNodeTriples.get(bnId)!.add({ predicate: triple.predicate.value, object: objValue });
     }
   }
 
@@ -60,20 +56,20 @@ export function deduplicateBlankNodes(dataset: Dataset): Dataset {
   }
 
   const result = dataset.map((triple) => {
-    let subject: string = triple.subject;
-    let object: string | Literal = triple.object;
+    let subject = triple.subject;
+    let object = triple.object;
 
-    if (typeof subject === 'string' && isBlankNode(subject)) {
-      const replacement = blankNodeReplacement.get(subject);
+    if (subject.termType === 'BlankNode') {
+      const replacement = blankNodeReplacement.get(subject.value);
       if (replacement) {
-        subject = replacement;
+        subject = { termType: 'BlankNode', value: replacement };
       }
     }
 
-    if (typeof object === 'string' && isBlankNode(object)) {
-      const replacement = blankNodeReplacement.get(object);
+    if (object.termType === 'BlankNode') {
+      const replacement = blankNodeReplacement.get(object.value);
       if (replacement) {
-        object = replacement;
+        object = { termType: 'BlankNode', value: replacement };
       }
     }
 
@@ -87,7 +83,7 @@ export function deduplicateBlankNodes(dataset: Dataset): Dataset {
   const uniqueTriples = new Set<string>();
   const deduped: typeof result = [];
   for (const t of result) {
-    const key = `${t.subject}|${t.predicate}|${getObjectString(t.object)}`;
+    const key = `${t.subject.value}|${t.predicate.value}|${getObjectString(t.object)}`;
     if (!uniqueTriples.has(key)) {
       uniqueTriples.add(key);
       deduped.push(t);

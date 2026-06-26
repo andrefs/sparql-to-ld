@@ -7,10 +7,6 @@ import { UriTranslator } from '../rdf/uri-translator.js';
 import { RdfFormat, NegotiatedFormat, Source } from '../types/Resource.js';
 import { InvalidIriError, UnsupportedFormatError } from '../types/Errors.js';
 
-function isBlankNode(id: string): boolean {
-  return id.startsWith('_:') || /^b\d+_/.test(id);
-}
-
 export interface ServerDeps {
   SourceManager?: typeof SourceManager;
 }
@@ -161,17 +157,23 @@ export function createServer(config: ServerConfig, deps: ServerDeps = {}): Fasti
 
           if (translator) {
             for (const triple of triples) {
-              if (typeof triple.subject === 'string' && !isBlankNode(triple.subject)) {
-                translatedUris.set(triple.subject, translator.translateUri(triple.subject, dsName));
-              }
-              if (typeof triple.predicate === 'string' && !isBlankNode(triple.predicate)) {
+              if (triple.subject.termType === 'NamedNode') {
                 translatedUris.set(
-                  triple.predicate,
-                  translator.translateUri(triple.predicate, dsName)
+                  triple.subject.value,
+                  translator.translateUri(triple.subject.value, dsName)
                 );
               }
-              if (typeof triple.object === 'string' && !isBlankNode(triple.object)) {
-                translatedUris.set(triple.object, translator.translateUri(triple.object, dsName));
+              if (triple.predicate.termType === 'NamedNode') {
+                translatedUris.set(
+                  triple.predicate.value,
+                  translator.translateUri(triple.predicate.value, dsName)
+                );
+              }
+              if (triple.object.termType === 'NamedNode') {
+                translatedUris.set(
+                  triple.object.value,
+                  translator.translateUri(triple.object.value, dsName)
+                );
               }
             }
           }

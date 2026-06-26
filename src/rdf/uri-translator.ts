@@ -1,4 +1,4 @@
-import { Source, Dataset, Iri, BlankNode, Literal } from '../types/Resource.js';
+import { Source, Dataset, NamedNode, BlankNode, Literal } from '../types/Resource.js';
 
 export class UriTranslator {
   private sources: Source[];
@@ -89,32 +89,31 @@ export class UriTranslator {
     const dsName = options?.dsName;
 
     return dataset.map((triple) => ({
-      subject: this.translateNode(triple.subject, dsName) as Iri | BlankNode,
-      predicate: this.translateIri(triple.predicate, dsName),
-      object: this.translateNode(triple.object, dsName),
+      subject: this.translateSubject(triple.subject, dsName),
+      predicate: this.translatePredicate(triple.predicate, dsName),
+      object: this.translateObject(triple.object, dsName),
     }));
   }
 
-  private translateNode(
-    node: Iri | BlankNode | Literal,
+  private translateSubject(node: NamedNode | BlankNode, dsName?: string): NamedNode | BlankNode {
+    if (node.termType === 'BlankNode') return node;
+    return { termType: 'NamedNode', value: this.translateIri(node.value, dsName) };
+  }
+
+  private translatePredicate(node: NamedNode, dsName?: string): NamedNode {
+    return { termType: 'NamedNode', value: this.translateIri(node.value, dsName) };
+  }
+
+  private translateObject(
+    node: NamedNode | BlankNode | Literal,
     dsName?: string
-  ): Iri | BlankNode | Literal {
-    if (this.isBlankNode(node) || this.isLiteral(node)) {
-      return node;
-    }
-    return this.translateIri(node, dsName);
+  ): NamedNode | BlankNode | Literal {
+    if (node.termType === 'BlankNode') return node;
+    if (node.termType === 'Literal') return node;
+    return { termType: 'NamedNode', value: this.translateIri(node.value, dsName) };
   }
 
-  private isBlankNode(node: Iri | BlankNode | Literal): node is BlankNode {
-    if (typeof node !== 'string') return false;
-    return node.startsWith('_:') || /^b\d+_/.test(node);
-  }
-
-  private isLiteral(node: Iri | BlankNode | Literal): node is Literal {
-    return typeof node !== 'string' && 'value' in node;
-  }
-
-  private translateIri(iri: Iri, dsName?: string): Iri {
+  private translateIri(iri: string, dsName?: string): string {
     let bestMatch: Source | null = null;
     let maxLength = -1;
     let matchedDsName: string | null = null;

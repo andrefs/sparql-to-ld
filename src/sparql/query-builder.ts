@@ -129,13 +129,19 @@ export function buildCbdQuery(resourceIri: string, limit?: number): string {
  * Build a CONSTRUCT query based on endpoint mode.
  *
  * Modes:
- * - describe: Simple DESCRIBE query
- * - fwd-one: CONSTRUCT with ?uri ?p ?o
- * - fwd-two: CONSTRUCT with ?uri ?p ?o + 1-hop blank node expansion
- * - back-one: CONSTRUCT with ?s ?p ?uri
- * - back-two: CONSTRUCT with ?s ?p ?uri + 1-hop blank node expansion
- * - sym-one: UNION of fwd-one and back-one
- * - sym-two: Full symmetric 2-hop pattern
+ * - describe:       Simple DESCRIBE query
+ * - fwd-one:        CONSTRUCT with ?uri ?p ?o
+ * - fwd-two:        CONSTRUCT with ?uri ?p ?o + 1-hop blank node expansion
+ * - back-one:       CONSTRUCT with ?s ?p ?uri
+ * - back-two:       CONSTRUCT with ?s ?p ?uri + 1-hop blank node expansion
+ * - sym-one:        UNION of fwd-one and back-one
+ * - sym-two:        Full symmetric 2-hop pattern
+ * - fwd-one-blank:  fwd-one + 1-level blank node follow
+ * - back-one-blank: back-one + 1-level blank node follow
+ * - sym-one-blank:  UNION of fwd-one-blank and back-one-blank
+ * - fwd-two-blank:  fwd-one + 2-level blank node follow
+ * - back-two-blank: back-one + 2-level blank node follow
+ * - sym-two-blank:  UNION of fwd-two-blank and back-two-blank
  */
 export function buildConstructQuery(resourceIri: string, mode: EndpointMode): string {
   const escaped = escapeIri(resourceIri);
@@ -248,6 +254,32 @@ WHERE {
   }
 }`;
 
+    case 'fwd-two-blank':
+      return `CONSTRUCT {
+  ${escaped} ?p ?o .
+  ?x ?p2 ?o2 .
+  ?y ?p3 ?o3 .
+}
+WHERE {
+  {
+    ${escaped} ?p ?o .
+  }
+  UNION
+  {
+    ${escaped} ?p1 ?x .
+    ?x ?p2 ?o2 .
+    FILTER(isBlank(?x))
+  }
+  UNION
+  {
+    ${escaped} ?p1 ?x .
+    ?x ?p2 ?y .
+    ?y ?p3 ?o3 .
+    FILTER(isBlank(?x))
+    FILTER(isBlank(?y))
+  }
+}`;
+
     case 'back-one-blank':
       return `CONSTRUCT {
   ?s ?p ${escaped} .
@@ -262,6 +294,32 @@ WHERE {
     ?x ?p1 ${escaped} .
     ?s2 ?p2 ?x .
     FILTER(isBlank(?x))
+  }
+}`;
+
+    case 'back-two-blank':
+      return `CONSTRUCT {
+  ?s ?p ${escaped} .
+  ?s2 ?p2 ?x .
+  ?s3 ?p3 ?y .
+}
+WHERE {
+  {
+    ?s ?p ${escaped} .
+  }
+  UNION
+  {
+    ?x ?p1 ${escaped} .
+    ?s2 ?p2 ?x .
+    FILTER(isBlank(?x))
+  }
+  UNION
+  {
+    ?y ?p2 ?x .
+    ?x ?p1 ${escaped} .
+    ?s3 ?p3 ?y .
+    FILTER(isBlank(?x))
+    FILTER(isBlank(?y))
   }
 }`;
 
@@ -291,6 +349,53 @@ WHERE {
     ?x ?p1 ${escaped} .
     ?s2 ?p2 ?x .
     FILTER(isBlank(?x))
+  }
+}`;
+
+    case 'sym-two-blank':
+      return `CONSTRUCT {
+  ${escaped} ?p ?o .
+  ?s ?p ${escaped} .
+  ?x ?p2 ?o2 .
+  ?y ?p3 ?o3 .
+  ?s2 ?p2 ?x .
+  ?s3 ?p3 ?y .
+}
+WHERE {
+  {
+    ${escaped} ?p ?o .
+  }
+  UNION
+  {
+    ?s ?p ${escaped} .
+  }
+  UNION
+  {
+    ${escaped} ?p1 ?x .
+    ?x ?p2 ?o2 .
+    FILTER(isBlank(?x))
+  }
+  UNION
+  {
+    ${escaped} ?p1 ?x .
+    ?x ?p2 ?y .
+    ?y ?p3 ?o3 .
+    FILTER(isBlank(?x))
+    FILTER(isBlank(?y))
+  }
+  UNION
+  {
+    ?x ?p1 ${escaped} .
+    ?s2 ?p2 ?x .
+    FILTER(isBlank(?x))
+  }
+  UNION
+  {
+    ?y ?p2 ?x .
+    ?x ?p1 ${escaped} .
+    ?s3 ?p3 ?y .
+    FILTER(isBlank(?x))
+    FILTER(isBlank(?y))
   }
 }`;
 

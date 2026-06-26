@@ -1,5 +1,5 @@
 import { Parser, Writer, DataFactory, Quad } from 'n3';
-import { Dataset, Triple, Iri, BlankNode, Literal, RdfFormat } from '../types/Resource.js';
+import { Dataset, Triple, NamedNode, BlankNode, Literal, RdfFormat } from '../types/Resource.js';
 import { RdfParseError } from '../types/Errors.js';
 
 const { namedNode, blankNode, literal, quad } = DataFactory;
@@ -14,55 +14,48 @@ export const RDF_FORMATS: Record<RdfFormat, { parserFormat: string; writerFormat
 
 function quadToTriple(q: Quad): Triple {
   return {
-    subject: nodeToIriOrBlankNode(q.subject),
-    predicate: q.predicate.value,
-    object: nodeToIriOrLiteral(q.object),
+    subject: nodeToSubject(q.subject),
+    predicate: namedNode(q.predicate.value),
+    object: nodeToObject(q.object),
   };
 }
 
-function nodeToIriOrBlankNode(node: any): Iri | BlankNode {
-  if (node.termType === 'NamedNode') return node.value;
-  if (node.termType === 'BlankNode') return node.value;
-  throw new RdfParseError(`Unexpected node type in subject/object: ${node.termType}`);
+function nodeToSubject(node: any): NamedNode | BlankNode {
+  if (node.termType === 'NamedNode') return { termType: 'NamedNode', value: node.value };
+  if (node.termType === 'BlankNode') return { termType: 'BlankNode', value: node.value };
+  throw new RdfParseError(`Unexpected node type in subject: ${node.termType}`);
 }
 
-function nodeToIriOrLiteral(node: any): Iri | BlankNode | Literal {
-  if (node.termType === 'NamedNode') return node.value;
-  if (node.termType === 'BlankNode') return node.value;
+function nodeToObject(node: any): NamedNode | BlankNode | Literal {
+  if (node.termType === 'NamedNode') return { termType: 'NamedNode', value: node.value };
+  if (node.termType === 'BlankNode') return { termType: 'BlankNode', value: node.value };
   if (node.termType === 'Literal') {
-    const lit: Literal = { value: node.value };
+    const lit: Literal = { termType: 'Literal', value: node.value };
     if (node.language) lit.language = node.language;
     else if (node.datatype) lit.datatype = node.datatype.value;
     return lit;
   }
-  throw new RdfParseError(`Cannot convert node type ${node.termType} to literal/iri`);
-}
-
-function isBlankNodeId(id: string): boolean {
-  return id.startsWith('_:') || /^b\d+_/.test(id);
+  throw new RdfParseError(`Cannot convert node type ${node.termType} to triple term`);
 }
 
 function tripleToN3Quad(triple: Triple): Quad {
-  const { subject, predicate, object } = triple;
   const s =
-    typeof subject === 'string' && isBlankNodeId(subject) ? blankNode(subject) : namedNode(subject);
-  const p = namedNode(predicate);
-  const o = nodeToN3Object(object);
+    triple.subject.termType === 'BlankNode'
+      ? blankNode(triple.subject.value)
+      : namedNode(triple.subject.value);
+  const p = namedNode(triple.predicate.value);
+  const o = nodeToN3Term(triple.object);
   return quad(s, p, o);
 }
 
-function nodeToN3Object(obj: Iri | BlankNode | Literal): any {
-  if (typeof obj === 'string') {
-    return isBlankNodeId(obj) ? blankNode(obj) : namedNode(obj);
-  }
-  if (obj.language) return literal(obj.value, obj.language);
-  if (obj.datatype) return literal(obj.value, namedNode(obj.datatype));
-  return literal(obj.value);
+function nodeToN3Term(node: NamedNode | BlankNode | Literal): any {
+  if (node.termType === 'NamedNode') return namedNode(node.value);
+  if (node.termType === 'BlankNode') return blankNode(node.value);
+  if (node.language) return literal(node.value, node.language);
+  if (node.datatype) return literal(node.value, namedNode(node.datatype));
+  return literal(node.value);
 }
 
-/**
- * Result of parsing RDF with metadata (prefixes and base)
- */
 export interface ParseResult {
   triples: Dataset;
   prefixes: Record<string, string>;
@@ -133,10 +126,6 @@ export class RdfSerializer {
     const writer = new Writer(writerOptions);
 
     const quads = dataset.map(tripleToN3Quad);
-    for (const q of quads) {
-      writer.addQuad(q);
-    }
-
     const quadsOutput = writer.quadsToString(quads);
 
     if (format !== 'text/turtle') {
@@ -182,25 +171,25 @@ export class RdfSerializer {
       return translatedUris.get(uri) ?? uri;
     };
 
-    const formatSubjectOrPredicate = (term: Iri | BlankNode): string => {
-      if (typeof term === 'string' && isBlankNodeId(term)) {
-        return escapeHtml(term);
+    const formatSubjectOrPredicate = (term: NamedNode | BlankNode): string => {
+      if (term.termType === 'BlankNode') {
+        return escapeHtml(term.value);
       }
-      const href = getLink(term);
-      const display = escapeHtml(term);
+      const href = getLink(term.value);
+      const display = escapeHtml(term.value);
       return `<a href="${escapeHref(href)}">${display}</a>`;
     };
 
-    const formatObject = (term: Iri | BlankNode | Literal): string => {
-      if (typeof term === 'string') {
-        if (isBlankNodeId(term)) {
-          return escapeHtml(term);
-        }
-        const href = getLink(term);
-        const display = escapeHtml(term);
-        return `<a href="${escapeHref(href)}">${display}</a>`;
+    const formatObject = (term: NamedNode | BlankNode | Literal): string => {
+      if (term.termType === 'BlankNode') {
+        return escapeHtml(term.value);
       }
-      return `<span class="literal">"${escapeHtml(term.value)}"</span>`;
+      if (term.termType === 'Literal') {
+        return `<span class="literal">"${escapeHtml(term.value)}"</span>`;
+      }
+      const href = getLink(term.value);
+      const display = escapeHtml(term.value);
+      return `<a href="${escapeHref(href)}">${display}</a>`;
     };
 
     let html = `<!DOCTYPE html>

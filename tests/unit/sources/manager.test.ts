@@ -3,7 +3,6 @@ import { SourceManager } from '../../../src/sources/manager.js';
 import { parseSparqlJsonResults } from '../../../src/sources/manager.js';
 import { Readable } from 'stream';
 
-// Helper to create a Node Readable stream from string
 function createMockStream(content: string): Readable {
   const stream = new Readable();
   stream.push(content);
@@ -11,7 +10,6 @@ function createMockStream(content: string): Readable {
   return stream;
 }
 
-// Mock class for SparqlClient
 function createMockSparqlClientClass(responseStream: Readable) {
   return class MockSparqlClient {
     literal = vi.fn().mockResolvedValue(responseStream);
@@ -35,9 +33,9 @@ describe('parseSparqlJsonResults', () => {
     const result = parseSparqlJsonResults(json);
     expect(result).toEqual([
       {
-        subject: 'http://example.org/subject',
-        predicate: 'http://example.org/predicate',
-        object: 'http://example.org/object',
+        subject: { termType: 'NamedNode', value: 'http://example.org/subject' },
+        predicate: { termType: 'NamedNode', value: 'http://example.org/predicate' },
+        object: { termType: 'NamedNode', value: 'http://example.org/object' },
       },
     ]);
   });
@@ -58,9 +56,9 @@ describe('parseSparqlJsonResults', () => {
     const result = parseSparqlJsonResults(json);
     expect(result).toEqual([
       {
-        subject: 'b0',
-        predicate: 'http://example.org/predicate',
-        object: 'b1',
+        subject: { termType: 'BlankNode', value: 'b0' },
+        predicate: { termType: 'NamedNode', value: 'http://example.org/predicate' },
+        object: { termType: 'BlankNode', value: 'b1' },
       },
     ]);
   });
@@ -81,9 +79,9 @@ describe('parseSparqlJsonResults', () => {
     const result = parseSparqlJsonResults(json);
     expect(result).toEqual([
       {
-        subject: 'http://example.org/subject',
-        predicate: 'http://example.org/predicate',
-        object: { value: 'plain literal' },
+        subject: { termType: 'NamedNode', value: 'http://example.org/subject' },
+        predicate: { termType: 'NamedNode', value: 'http://example.org/predicate' },
+        object: { termType: 'Literal', value: 'plain literal' },
       },
     ]);
   });
@@ -104,9 +102,9 @@ describe('parseSparqlJsonResults', () => {
     const result = parseSparqlJsonResults(json);
     expect(result).toEqual([
       {
-        subject: 'http://example.org/subject',
-        predicate: 'http://example.org/predicate',
-        object: { value: 'hello', language: 'en' },
+        subject: { termType: 'NamedNode', value: 'http://example.org/subject' },
+        predicate: { termType: 'NamedNode', value: 'http://example.org/predicate' },
+        object: { termType: 'Literal', value: 'hello', language: 'en' },
       },
     ]);
   });
@@ -127,9 +125,13 @@ describe('parseSparqlJsonResults', () => {
     const result = parseSparqlJsonResults(json);
     expect(result).toEqual([
       {
-        subject: 'http://example.org/subject',
-        predicate: 'http://example.org/predicate',
-        object: { value: '42', datatype: 'http://www.w3.org/2001/XMLSchema#integer' },
+        subject: { termType: 'NamedNode', value: 'http://example.org/subject' },
+        predicate: { termType: 'NamedNode', value: 'http://example.org/predicate' },
+        object: {
+          termType: 'Literal',
+          value: '42',
+          datatype: 'http://www.w3.org/2001/XMLSchema#integer',
+        },
       },
     ]);
   });
@@ -178,14 +180,14 @@ describe('parseSparqlJsonResults', () => {
     const result = parseSparqlJsonResults(json);
     expect(result).toEqual([
       {
-        subject: 'http://example.org/subject1',
-        predicate: 'http://example.org/predicate1',
-        object: { value: 'literal value' },
+        subject: { termType: 'NamedNode', value: 'http://example.org/subject1' },
+        predicate: { termType: 'NamedNode', value: 'http://example.org/predicate1' },
+        object: { termType: 'Literal', value: 'literal value' },
       },
       {
-        subject: 'http://example.org/subject2',
-        predicate: 'http://example.org/predicate2',
-        object: 'b0',
+        subject: { termType: 'NamedNode', value: 'http://example.org/subject2' },
+        predicate: { termType: 'NamedNode', value: 'http://example.org/predicate2' },
+        object: { termType: 'BlankNode', value: 'b0' },
       },
     ]);
   });
@@ -237,7 +239,7 @@ describe('SourceManager.fetchByLiteral', () => {
     const result = await manager.fetchByLiteral('test', '"test"', 'text/turtle');
 
     expect(result.triples).toHaveLength(1);
-    expect(result.triples[0].object).toEqual({ value: 'test' });
+    expect(result.triples[0].object).toEqual({ termType: 'Literal', value: 'test' });
     expect(result.prefixes).toEqual({});
     expect(result.base).toBeUndefined();
   });
@@ -280,7 +282,6 @@ describe('SourceManager.fetchByLiteral', () => {
     const stream1 = createMockStream(JSON.stringify(mockJson1));
     const stream2 = createMockStream(JSON.stringify(mockJson2));
 
-    // We need separate instances for each endpoint call. Since fetchByLiteral loops endpoints and creates a new client per endpoint, we need the MockSparqlClientClass to produce instances that give different streams. We'll define a class that captures the stream via closure.
     let callCount = 0;
     const MockSparqlClientClass = class {
       literal = vi.fn().mockImplementation(() => {
@@ -300,9 +301,8 @@ describe('SourceManager.fetchByLiteral', () => {
     const result = await manager.fetchByLiteral('test', '"test"', 'text/turtle');
 
     expect(result.triples).toHaveLength(2);
-    // Ensure we got triples from both.
-    expect(result.triples[0].object).toEqual({ value: 'test' });
-    expect(result.triples[1].object).toEqual({ value: 'test' });
+    expect(result.triples[0].object).toEqual({ termType: 'Literal', value: 'test' });
+    expect(result.triples[1].object).toEqual({ termType: 'Literal', value: 'test' });
   });
 
   it('should throw AggregateError when all endpoints fail', async () => {
@@ -378,7 +378,6 @@ describe('SourceManager.fetchByLiteral', () => {
     const result = await manager.fetchByLiteral('test', '"test"', 'text/turtle');
 
     expect(result.triples).toHaveLength(1);
-    // Should not throw
   });
 
   it('should throw error for unknown dataset', async () => {
