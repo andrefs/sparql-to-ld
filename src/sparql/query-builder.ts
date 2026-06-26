@@ -142,6 +142,9 @@ export function buildCbdQuery(resourceIri: string, limit?: number): string {
  * - fwd-two-blank:  fwd-one + 2-level blank node follow
  * - back-two-blank: back-one + 2-level blank node follow
  * - sym-two-blank:  UNION of fwd-two-blank and back-two-blank
+ * - fwd-three-blank:  fwd-one + 3-level blank node follow
+ * - back-three-blank: back-one + 3-level blank node follow
+ * - sym-three-blank:  UNION of fwd-three-blank and back-three-blank
  */
 export function buildConstructQuery(resourceIri: string, mode: EndpointMode): string {
   const escaped = escapeIri(resourceIri);
@@ -396,6 +399,149 @@ WHERE {
     ?s3 ?p3 ?y .
     FILTER(isBlank(?x))
     FILTER(isBlank(?y))
+  }
+}`;
+
+    case 'fwd-three-blank':
+      return `CONSTRUCT {
+  ${escaped} ?p ?o .
+  ?x ?p2 ?o2 .
+  ?y ?p3 ?o3 .
+  ?z ?p4 ?o4 .
+}
+WHERE {
+  {
+    ${escaped} ?p ?o .
+  }
+  UNION
+  {
+    ${escaped} ?p1 ?x .
+    ?x ?p2 ?o2 .
+    FILTER(isBlank(?x))
+  }
+  UNION
+  {
+    ${escaped} ?p1 ?x .
+    ?x ?p2 ?y .
+    ?y ?p3 ?o3 .
+    FILTER(isBlank(?x))
+    FILTER(isBlank(?y))
+  }
+  UNION
+  {
+    ${escaped} ?p1 ?x .
+    ?x ?p2 ?y .
+    ?y ?p3 ?z .
+    ?z ?p4 ?o4 .
+    FILTER(isBlank(?x))
+    FILTER(isBlank(?y))
+    FILTER(isBlank(?z))
+  }
+}`;
+
+    case 'back-three-blank':
+      return `CONSTRUCT {
+  ?s ?p ${escaped} .
+  ?s2 ?p2 ?x .
+  ?s3 ?p3 ?y .
+  ?s4 ?p4 ?z .
+}
+WHERE {
+  {
+    ?s ?p ${escaped} .
+  }
+  UNION
+  {
+    ?x ?p1 ${escaped} .
+    ?s2 ?p2 ?x .
+    FILTER(isBlank(?x))
+  }
+  UNION
+  {
+    ?y ?p2 ?x .
+    ?x ?p1 ${escaped} .
+    ?s3 ?p3 ?y .
+    FILTER(isBlank(?x))
+    FILTER(isBlank(?y))
+  }
+  UNION
+  {
+    ?z ?p3 ?y .
+    ?y ?p2 ?x .
+    ?x ?p1 ${escaped} .
+    ?s4 ?p4 ?z .
+    FILTER(isBlank(?x))
+    FILTER(isBlank(?y))
+    FILTER(isBlank(?z))
+  }
+}`;
+
+    case 'sym-three-blank':
+      return `CONSTRUCT {
+  ${escaped} ?p ?o .
+  ?s ?p ${escaped} .
+  ?x ?p2 ?o2 .
+  ?y ?p3 ?o3 .
+  ?z ?p4 ?o4 .
+  ?s2 ?p2 ?x .
+  ?s3 ?p3 ?y .
+  ?s4 ?p4 ?z .
+}
+WHERE {
+  {
+    ${escaped} ?p ?o .
+  }
+  UNION
+  {
+    ?s ?p ${escaped} .
+  }
+  UNION
+  {
+    ${escaped} ?p1 ?x .
+    ?x ?p2 ?o2 .
+    FILTER(isBlank(?x))
+  }
+  UNION
+  {
+    ${escaped} ?p1 ?x .
+    ?x ?p2 ?y .
+    ?y ?p3 ?o3 .
+    FILTER(isBlank(?x))
+    FILTER(isBlank(?y))
+  }
+  UNION
+  {
+    ${escaped} ?p1 ?x .
+    ?x ?p2 ?y .
+    ?y ?p3 ?z .
+    ?z ?p4 ?o4 .
+    FILTER(isBlank(?x))
+    FILTER(isBlank(?y))
+    FILTER(isBlank(?z))
+  }
+  UNION
+  {
+    ?x ?p1 ${escaped} .
+    ?s2 ?p2 ?x .
+    FILTER(isBlank(?x))
+  }
+  UNION
+  {
+    ?y ?p2 ?x .
+    ?x ?p1 ${escaped} .
+    ?s3 ?p3 ?y .
+    FILTER(isBlank(?x))
+    FILTER(isBlank(?y))
+  }
+  UNION
+  {
+    ?z ?p3 ?y .
+    ?y ?p2 ?x .
+    ?x ?p1 ${escaped} .
+    ?s4 ?p4 ?z .
+    FILTER(isBlank(?x))
+    FILTER(isBlank(?y))
+    FILTER(isBlank(?z))
   }
 }`;
 

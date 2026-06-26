@@ -105,6 +105,9 @@ export const serverConfigSchema = z.object({
                 'fwd-two-blank',
                 'back-two-blank',
                 'sym-two-blank',
+                'fwd-three-blank',
+                'back-three-blank',
+                'sym-three-blank',
               ])
               .optional(),
             url: z.string(),

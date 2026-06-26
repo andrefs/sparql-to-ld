@@ -139,6 +139,39 @@ describe('buildConstructQuery', () => {
     expect(query).toContain('FILTER(isBlank(?y))');
   });
 
+  it('should build fwd-three-blank query with three-level blank expansion', () => {
+    const query = buildConstructQuery(iri, 'fwd-three-blank');
+    expect(query).toContain('?x ?p2 ?o2');
+    expect(query).toContain('?y ?p3 ?o3');
+    expect(query).toContain('?z ?p4 ?o4');
+    expect(query).toContain('FILTER(isBlank(?x))');
+    expect(query).toContain('FILTER(isBlank(?y))');
+    expect(query).toContain('FILTER(isBlank(?z))');
+  });
+
+  it('should build back-three-blank query with three-level blank expansion', () => {
+    const query = buildConstructQuery(iri, 'back-three-blank');
+    expect(query).toContain('?s2 ?p2 ?x');
+    expect(query).toContain('?s3 ?p3 ?y');
+    expect(query).toContain('?s4 ?p4 ?z');
+    expect(query).toContain('FILTER(isBlank(?x))');
+    expect(query).toContain('FILTER(isBlank(?y))');
+    expect(query).toContain('FILTER(isBlank(?z))');
+  });
+
+  it('should build sym-three-blank query with three-level blank expansion', () => {
+    const query = buildConstructQuery(iri, 'sym-three-blank');
+    expect(query).toContain('?x ?p2 ?o2');
+    expect(query).toContain('?s2 ?p2 ?x');
+    expect(query).toContain('?y ?p3 ?o3');
+    expect(query).toContain('?s3 ?p3 ?y');
+    expect(query).toContain('?z ?p4 ?o4');
+    expect(query).toContain('?s4 ?p4 ?z');
+    expect(query).toContain('FILTER(isBlank(?x))');
+    expect(query).toContain('FILTER(isBlank(?y))');
+    expect(query).toContain('FILTER(isBlank(?z))');
+  });
+
   it('should throw for unknown mode', () => {
     expect(() => buildConstructQuery(iri, 'invalid' as never)).toThrow('Unknown endpoint mode');
   });

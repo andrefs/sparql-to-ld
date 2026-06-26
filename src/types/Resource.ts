@@ -47,7 +47,10 @@ export type EndpointMode =
   | 'sym-one-blank'
   | 'fwd-two-blank'
   | 'back-two-blank'
-  | 'sym-two-blank';
+  | 'sym-two-blank'
+  | 'fwd-three-blank'
+  | 'back-three-blank'
+  | 'sym-three-blank';
 
 export interface SparqlEndpoint {
   type: 'sparql';
