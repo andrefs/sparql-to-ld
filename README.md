@@ -195,16 +195,18 @@ Retrieve a resource's CBD (Concise Bounded Description) from the specified datas
 
 ```bash
 # Retrieve resource from dataset "my-dataset"
-curl http://localhost:3000/ld/my-dataset/http://data.example.org/person/1
+# The path suffix "Abraham_Lincoln" is the local part of the resource IRI.
+# It gets combined with originalPrefix to form: http://dbpedia.org/resource/Abraham_Lincoln
+curl http://localhost:3000/ld/my-dataset/Abraham_Lincoln
 
 # Request as N-Triples
-curl http://localhost:3000/ld/my-dataset/http://data.example.org/person/1?format=nt
+curl http://localhost:3000/ld/my-dataset/Abraham_Lincoln?format=nt
 
 # Content negotiation via Accept header
-curl -H "Accept: application/rdf+xml" http://localhost:3000/ld/my-dataset/http://data.example.org/person/1
+curl -H "Accept: application/rdf+xml" http://localhost:3000/ld/my-dataset/Abraham_Lincoln
 
 # Disable response URI translation
-curl http://localhost:3000/ld/my-dataset/http://data.example.org/person/1?translateResponse=false
+curl http://localhost:3000/ld/my-dataset/Abraham_Lincoln?translateResponse=false
 ```
 
 #### `GET /health`
